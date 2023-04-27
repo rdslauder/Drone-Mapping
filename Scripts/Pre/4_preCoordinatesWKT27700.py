@@ -1,13 +1,12 @@
 import csv
 from shapely.geometry import Point
 
-# Convert reprojected coordinates (EPSG:27700) to WKT representation of geometry
+# Convert grid references into WKT
 
-def postCoordinatesWKT27700():
+def Pre_BNG_to_WKT():
 
     # Define the input and output files
-    csv_file = 'PostCoordinates.csv'
-    output_file = 'PostCoordinates_1.csv'
+    csv_file = 'PreCoordinates.csv'
 
     # Open the CSV file and read the data
     with open(csv_file, 'r') as f:
@@ -18,18 +17,19 @@ def postCoordinatesWKT27700():
     # Convert each row of CSV data to a Point object and then to WKT
     wkt_list = []
     for row in data:
-        east = float(row[4])
-        north = float(row[5])
+        east = float(row[3])
+        north = float(row[4])
         point = Point(east, north)
         wkt = point.wkt
         wkt_list.append(wkt)
 
     # Add the WKT data to the original CSV data
+    headers.append("Geometry")  # Add new column header
     for i, row in enumerate(data):
         row.append(wkt_list[i])
 
-    # Write the combined data to a new CSV file
-    with open(output_file, 'w', newline='') as f:
+    # Overwrite the original CSV file with the updated data
+    with open(csv_file, 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(headers + ['WKT'])
+        writer.writerow(headers)
         writer.writerows(data)

@@ -2,7 +2,7 @@ import os
 import exifread
 import csv
 
-# # Pull GPS coordinates for image EXIF data, store in a CSV with image number
+# Pull GPS coordinates from image EXIF data, store in a CSV with image number
 
 def postImagePullCoordinates():
 

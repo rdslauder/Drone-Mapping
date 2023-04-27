@@ -4,13 +4,13 @@ import matplotlib.pyplot as plt
 
 # plot coordinates on a figure with labels and save as an image
 
-def postPlotCoordinates():
+def prePlotCoordinates():
 
     # Set the file paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    shp_file = os.path.join(script_dir, "PostCoordinates.shp")
-    img_file = os.path.join(script_dir, "PostCoordinates.png")
-    csv_file = os.path.join(script_dir, "PostCoordinates.csv")
+    shp_file = os.path.join(script_dir, "PreCoordinates.shp")
+    img_file = os.path.join(script_dir, "PreCoordinates.png")
+    csv_file = os.path.join(script_dir, "PreCoordinates.csv")
 
     # Read in the GeoDataFrame
     gdf = gpd.read_file(shp_file)
