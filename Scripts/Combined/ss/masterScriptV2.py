@@ -465,46 +465,96 @@ def runAccuracyAssessment():
 
 #####################################
 
-def accuracyAssessment():
+def checkAccuracyAssessment():
 
- # Read in the two CSV files
-    preCoord = pd.read_csv('PreCoordinates.csv')
-    postCoord = pd.read_csv('PostCoordinates.csv')
-
+ 
+    
     # Define the condition to check if the captured images match the flight plan
     # If they match, run the accuracy asssessment, otherwise: delete the duplicate and newly created outputs then recreate outputs using corrected data
+    while True:
 
-    if len(preCoord['Name']) == len(postCoord['Name']):
-        runAccuracyAssessment()
-
-    elif len(preCoord['Name']) < len(postCoord['Name']):
-        print("\n\n\n\n\n" + 
-                "Accuracy assessment failed." + "\n" + 
-                "The number of captured images do not match the flight plan due to duplicate images." + "\n" + 
-                "Review the labelled plots and tell me the number of the duplicate image." + "\n" +
-                "Tip - follow the flight pattern as the numbers increase, flicking between the pre and post plot, look out for the moment the 'post' numbers not longer match the 'pre' numbers." 
-                "\n\n\n\n\n")
+        # Read in the two CSV files
+        preCoord = pd.read_csv('PreCoordinates.csv')
+        postCoord = pd.read_csv('PostCoordinates.csv')
         
-        # Ask the user to input the duplicate image then delete that image
-        dupImage = str(input("What is the duplicate image number? ") + ".jpg")
-        os.remove(dupImage)
+        if len(preCoord['Name']) == len(postCoord['Name']):
+            global accuracyAssessComplete
+            runAccuracyAssessment()
+            accuracyAssessComplete = True
+            break
+        
+        
+            
+
+        elif len(preCoord['Name']) < len(postCoord['Name']):
+            print("\n\n\n\n\n" + 
+                    "Accuracy assessment failed." + "\n" + 
+                    "The number of captured images do not match the flight plan due to duplicate images." + "\n" + 
+                    "Review the labelled plots and tell me the number of the duplicate image." + "\n" +
+                    "Tip - follow the flight pattern as the numbers increase, flicking between the pre and post plot, look out for the moment the 'post' numbers not longer match the 'pre' numbers." 
+                    "\n\n\n\n\n")
+            
+            # Ask the user to input the duplicate image then delete that image
+            dupImage = str(input("What is the duplicate image number? ") + ".jpg")
+            os.remove(dupImage)
+        
+        
+        ######## Delete all created outputs as these will have to be recreated with the correct images
+            deleteOutputs()
+        
+        # Now that the duplicates and newly created outputs have been deleted, recreate outputs using corrected data then run accuracy assessment
+            createOutputs()
+            runAccuracyAssessment()
+            accuracyAssessComplete = True
+            break
+
+
+
+        # This can happen if the fligt was cut short (e.g. due to poor weather conditions)
+        else:
+            deleteOutputs()
+            accuracyAssessComplete = False
+            
+
+    #######################
+
+    def askAccuracyAssessment():
+        while True:                                                   # set up infinite loop so we can reprompt the user if they enter invalid input
+            request = str(input("Do you want to run an accuracy assessment on the flight plan and images? "))  # Ask the user if they want an accuracy assessment, pass input to variable
+            
+            if request in ["Yes", "yes", "Y", "y"]:                   # User does want an accuracy assessment
+                global assessed                                       # Set a global variable that can be accessed outside of this function and used to print a message
+                checkAccuracyAssessment()                                         # Run the checkAccuracyAssessment function
+                assessed = True                                       # checkAccuracyAssessment has been called so we set the assessed variable to True
+                break                                                 # Break from infinite loop
+            
+            elif request in ["No", "no", "N", "n"]:                   # User does not want an accuracy assessment
+                assessed = False                                      # checkAccuracyAssessment has not been called so we set the assessed variable to False
+                break                                                 # Break from infinite loop
+            
+            else:
+                print("Enter yes or no")                              # reprompt the user with help on what to enter, will not break from loop until valid response given
     
-    
-     ######## Delete all created outputs as these will have to be recreated with the correct images
-        deleteOutputs()
-    
-    # Now that the duplicates and newly created outputs have been deleted, recreate outputs using corrected data then run accuracy assessment
-        createOutputs()
-        runAccuracyAssessment()
 
+#######################
 
+def askAccuracyAssessment():
 
-    # This can happen if the fligt was cut short (e.g. due to poor weather conditions)
-    else:
-        deleteOutputs()
-        print('Not enough images to match the flight plan. Delete excess points on the mission plan before running again.')
-
-
+    while True:                                                  # set up infinite loop so we can reprompt the user if they enter invalid input
+            request = str(input("Do you want an accuracy assessment of the images? "))              # Ask the user if they want to batch rename, pass input to variable
+            
+            if request in ["Yes", "yes", "Y", "y"]:                   # User does want to batch rename
+                global batched                                        # Set a global variable that can be accessed outside of this function and used to print a message
+                batchRename()                                         # Run the batchRename function
+                batched = True                                        # batchRename has been called so we set the batched variable to True
+                break                                                 # Break from infinite loop
+            
+            elif request in ["No", "no", "N", "n"]:                   # User does not want to batch rename
+                batched = False                                       # batchRename has not been called so we set the batched variable to False
+                break                                                 # Break from infinite loop
+            
+            else:
+                print("Enter yes or no")                              # reprompt the user with help on what to enter, will not break from loop until valid response given
 
 
 
@@ -719,7 +769,7 @@ def createOutputs():
 
 createOutputs()
 
-accuracyAssessment() 
+checkAccuracyAssessment() 
 
 # plot coordinates on a figure without labels and save as an image
 prePlotCoordinates()
@@ -731,50 +781,37 @@ askBatchRename()
 
 
 # Print message when coordinate conversion is complete
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
+print("\n\n\n\n\n\n\n\n\n\n")
+
 print("PRE FLIGHT: ")
 print("-The flight plan in the KMZ file has been extracted, converted to British National Grid and WKT, then stored in PreCoordinates CSV.")
+print("-Points saved as shapefile for use in GIS.")
 print("-Plots of the planned flight coordinates have been saved as images (one labelled, one unlabelled), and a shapefile created for GIS use.")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
+
+print("\n\n")
+
 print("POST FLIGHT: ")
 print("-GPS data has been extracted from the images, converted to British National Grid and WKT, then stored in PostCoordinates CSV.")
+print("-Points saved as shapefile for use in GIS.")
 print("-Plots of the actual image coordinates has been saved as images (one labelled, one unlabelled), and a shapefile created for GIS use.")
-print("A flight accuracy assessment has been done and saved as an extra column in PostCoordinates CSV. ")
+
+# Print a different message depending on whether the user has requested an accuracy assessment
+if assessed:
+    print("-Accuracy assessment requested.")
+else: 
+    print("-Accuracy assessment not requested.")
+
+# Print a different message depending on whether the accuracy assessment was a success
+if accuracyAssessComplete:
+    print("-Accuracy assessment successful.")
+else:
+    print("-Accuracy assessment failed. Not enough images to match the flight plan. Delete excess points on the mission plan before running again.")
+
+
 # Print a different message depending on whether the images have been batch renamed or not.
 if batched:
     print("-All drone images renamed in order of capture time, with the batch number.")
 else: 
     print("-All drone images renamed in order of capture time.")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
-print(" ")
+
+print("\n\n\n\n\n\n\n\n\n\n")
