@@ -187,7 +187,7 @@ def prePlotCoordinatesLabels():
     # Set the file paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
     shp_file = os.path.join(script_dir, "PreCoordinates.shp")
-    img_file = os.path.join(script_dir, "PreCoordinatesLabels.png")
+    img_file = os.path.join(script_dir, "1_PreCoordinatesLabels.png")
     csv_file = os.path.join(script_dir, "PreCoordinates.csv")
 
     # Read in the GeoDataFrame
@@ -431,9 +431,11 @@ def postFormatCSV():
 
 #####################################
 
-# Accuracy assessment, add results into PostCoordinates.csv
+ # Accuracy assessment, add results into PostCoordinates.csv
 
-def accuracyAssessment():
+def runAccuracyAssessment():
+
+
     # Read in the two CSV files
     df1 = pd.read_csv('PreCoordinates.csv')
     df2 = pd.read_csv('PostCoordinates.csv')
@@ -459,6 +461,50 @@ def accuracyAssessment():
 
     # Write the updated CSV file to disk
     df2.to_csv('PostCoordinates.csv', index=False)
+
+
+#####################################
+
+def accuracyAssessment():
+
+ # Read in the two CSV files
+    preCoord = pd.read_csv('PreCoordinates.csv')
+    postCoord = pd.read_csv('PostCoordinates.csv')
+
+    # Define the condition to check if the captured images match the flight plan
+    # If they match, run the accuracy asssessment, otherwise: delete the duplicate and newly created outputs then recreate outputs using corrected data
+
+    if len(preCoord['Name']) == len(postCoord['Name']):
+        runAccuracyAssessment()
+
+    elif len(preCoord['Name']) < len(postCoord['Name']):
+        print("\n\n\n\n\n" + 
+                "Accuracy assessment failed." + "\n" + 
+                "The number of captured images do not match the flight plan due to duplicate images." + "\n" + 
+                "Review the labelled plots and tell me the number of the duplicate image." + "\n" +
+                "Tip - follow the flight pattern as the numbers increase, flicking between the pre and post plot, look out for the moment the 'post' numbers not longer match the 'pre' numbers." 
+                "\n\n\n\n\n")
+        
+        # Ask the user to input the duplicate image then delete that image
+        dupImage = str(input("What is the duplicate image number? ") + ".jpg")
+        os.remove(dupImage)
+    
+    
+     ######## Delete all created outputs as these will have to be recreated with the correct images
+        deleteOutputs()
+    
+    # Now that the duplicates and newly created outputs have been deleted, recreate outputs using corrected data then run accuracy assessment
+        createOutputs()
+        runAccuracyAssessment()
+
+
+
+    # This can happen if the fligt was cut short (e.g. due to poor weather conditions)
+    else:
+        deleteOutputs()
+        print('Not enough images to match the flight plan. Delete excess points on the mission plan before running again.')
+
+
 
 
 
@@ -495,7 +541,7 @@ def postPlotCoordinatesLabels():
     # Set the file paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
     shp_file = os.path.join(script_dir, "PostCoordinates.shp")
-    img_file = os.path.join(script_dir, "PostCoordinatesLabels.png")
+    img_file = os.path.join(script_dir, "2_PostCoordinatesLabels.png")
     csv_file = os.path.join(script_dir, "PostCoordinates.csv")
 
     # Read in the GeoDataFrame
@@ -525,7 +571,7 @@ def postPlotCoordinates():
     # Set the file paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
     shp_file = os.path.join(script_dir, "PostCoordinates.shp")
-    img_file = os.path.join(script_dir, "PostCoordinates.png")
+    img_file = os.path.join(script_dir, "4_PostCoordinates.png")
     csv_file = os.path.join(script_dir, "PostCoordinates.csv")
 
     # Read in the GeoDataFrame
@@ -553,7 +599,7 @@ def prePlotCoordinates():
     # Set the file paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
     shp_file = os.path.join(script_dir, "PreCoordinates.shp")
-    img_file = os.path.join(script_dir, "PreCoordinates.png")
+    img_file = os.path.join(script_dir, "3_PreCoordinates.png")
     csv_file = os.path.join(script_dir, "PreCoordinates.csv")
 
     # Read in the GeoDataFrame
@@ -572,70 +618,114 @@ def prePlotCoordinates():
     # option to show the plot as an image on screen
     # plt.show()
 
-#####################################
+        
+    
+#########################################
 
 # Rename images with user inputting the batch number for a prefix, insert "#" between batch number and image number.
 # Will only convert JPEG images, did not include PNG as this will be the format of the exported plots.
 
 def batchRename():
 
-    # Get script directory
-    script_directory = os.path.dirname(os.path.realpath(__file__))
+    script_directory = os.path.dirname(os.path.realpath(__file__))               # Get script directory
 
-    # Set the path to the directory containing the files to be renamed
-    folder_path = os.path.join(script_directory)
+    folder_path = os.path.join(script_directory)                                 # Set the path to the directory containing the files to be renamed
 
-    # Prompt the user to input a prefix
-    prefix = input("Enter the batch number: ")
+    prefix = input("Enter the batch number: ")                                   # Prompt the user to input a prefix
 
-    # Set the starting index
-    start_index = 1
+    start_index = 1                                                              # Set the starting index
 
-    # Loop through each file in the directory
-    for i, filename in enumerate(os.listdir(folder_path)):
-        # Check if the file is an image
-        if os.path.splitext(filename)[1].lower() in ['.jpg', '.jpeg']:
-            # Set the new filename
-            new_filename = prefix + '#' + str(start_index) + '.jpg'
+    
+    for i, filename in enumerate(os.listdir(folder_path)):                       # Loop through each file in the directory
+        
+        if os.path.splitext(filename)[1].lower() in ['.jpg', '.jpeg']:           # Check if the file is an image
 
-            # Set the paths to the source and destination files
-            source_path = os.path.join(folder_path, filename)
+            new_filename = prefix + '#' + str(start_index) + '.jpg'              # Set the new filename
+
+            source_path = os.path.join(folder_path, filename)                    # Set the paths to the source and destination files
             destination_path = os.path.join(folder_path, new_filename)
 
-            # Rename the file
-            os.rename(source_path, destination_path)
+            os.rename(source_path, destination_path)                             # Rename the file
 
-            # Increment the index
-            start_index += 1
+            start_index += 1                                                     # Increment the index
+
+
+
+#####################################
+
+# Ask the user if they want to rename images with a batch number
+
+def askBatchRename():
+    while True:                                                  # set up infinite loop so we can reprompt the user if they enter invalid input
+        request = str(input("Do you want to rename the images with a batch number? "))              # Ask the user if they want to batch rename, pass input to variable
+        
+        if request in ["Yes", "yes", "Y", "y"]:                   # User does want to batch rename
+            global batched                                        # Set a global variable that can be accessed outside of this function and used to print a message
+            batchRename()                                         # Run the batchRename function
+            batched = True                                        # batchRename has been called so we set the batched variable to True
+            break                                                 # Break from infinite loop
+        
+        elif request in ["No", "no", "N", "n"]:                   # User does not want to batch rename
+            batched = False                                       # batchRename has not been called so we set the batched variable to False
+            break                                                 # Break from infinite loop
+        
+        else:
+            print("Enter yes or no")                              # reprompt the user with help on what to enter, will not break from loop until valid response given
+
 
 
 ######################################################################################
 
-preKMZtoKML()
-prePullCoordinatesKML()
-preConvertCoordinates()
-preCoordinatesWKT27700()
-preCreateGeodataframeShapefile()
+# Delete any outputs created so far so we do not create them again when we start the process over.
 
-timedRename()
-postImagePullCoordinates()
-postConvertCoordinates()
-postCoordinatesWKT27700()
-postFormatCSV()
-postCreateGeodataframeShapefile()
+def deleteOutputs():
 
-prePlotCoordinatesLabels()
-postPlotCoordinatesLabels()
+    # Get the directory path of the current script
+    dir_path = os.path.dirname(os.path.abspath(__file__))
+
+    # Specify the file extensions of the files to be deleted
+    file_extensions = [".png", ".csv", ".kml"]
+
+    # Loop through all the files in the directory
+    for file_name in os.listdir(dir_path):
+        # Check if the file has one of the specified extensions
+        if any(file_name.endswith(ext) for ext in file_extensions):
+            # Delete the file
+            os.remove(os.path.join(dir_path, file_name))
+
+
+
+##############################
+
+def createOutputs():
+    preKMZtoKML()
+    prePullCoordinatesKML()
+    preConvertCoordinates()
+    preCoordinatesWKT27700()
+    preCreateGeodataframeShapefile()
+
+    timedRename()
+    postImagePullCoordinates()
+    postConvertCoordinates()
+    postCoordinatesWKT27700()
+    postFormatCSV()
+    postCreateGeodataframeShapefile()
+
+    prePlotCoordinatesLabels()
+    postPlotCoordinatesLabels()
+
+
+#############################################
+
+createOutputs()
 
 accuracyAssessment() 
-# if indices do not match (number of photos doesn't match the fligh plan), compare the plots to find the duplicate photo.
-# input photo number, that photo will be deleted and the accuracy assessment will rerun.
 
 # plot coordinates on a figure without labels and save as an image
 prePlotCoordinates()
 postPlotCoordinates()
 
-batchRename()
+askBatchRename()
 
 
 
@@ -657,7 +747,7 @@ print(" ")
 print(" ")
 print("PRE FLIGHT: ")
 print("-The flight plan in the KMZ file has been extracted, converted to British National Grid and WKT, then stored in PreCoordinates CSV.")
-print("-Plots of the planned flight coordinates has been saved as images (one labelled, one unlabelled), and a shapefile created for GIS use.")
+print("-Plots of the planned flight coordinates have been saved as images (one labelled, one unlabelled), and a shapefile created for GIS use.")
 print(" ")
 print(" ")
 print(" ")
@@ -669,7 +759,11 @@ print("POST FLIGHT: ")
 print("-GPS data has been extracted from the images, converted to British National Grid and WKT, then stored in PostCoordinates CSV.")
 print("-Plots of the actual image coordinates has been saved as images (one labelled, one unlabelled), and a shapefile created for GIS use.")
 print("A flight accuracy assessment has been done and saved as an extra column in PostCoordinates CSV. ")
-print("-All drone images renamed with the batch number.")
+# Print a different message depending on whether the images have been batch renamed or not.
+if batched:
+    print("-All drone images renamed in order of capture time, with the batch number.")
+else: 
+    print("-All drone images renamed in order of capture time.")
 print(" ")
 print(" ")
 print(" ")
