@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import zipfile
 import xml.etree.ElementTree as ET
 import datetime
+import shutil
 
 
 ######################################
@@ -432,6 +433,57 @@ def postFormatCSV():
         writer.writerows(sorted_rows)
 
 
+################################
+
+def deleteOutputsPostDup():
+
+
+    # Get the directory path of the current script
+    dir_path = os.path.dirname(os.path.abspath(__file__))
+
+    # Specify the names of the files to be deleted
+    file_names = ["#2_PostCoordinatesLabels.png", "#4_PostCoordinates.png" "PostCoordinates.csv", "PostCoordinates.shp", 
+                  "PostCoordinates.dbf", "PostCoordinates.cpg", "PostCoordinates.shx"]
+
+    # Loop through all the files in the directory
+    for file_name in os.listdir(dir_path):
+        # Check if the file name is in the list of files to be deleted
+        if file_name in file_names:
+            # Delete the file
+            os.remove(os.path.join(dir_path, file_name))
+
+def createOutputsPostDup():
+    timedRename()
+    postImagePullCoordinates()
+    postConvertCoordinates()
+    postCoordinatesWKT27700()
+    postFormatCSV()
+    postCreateGeodataframeShapefile()
+    postPlotCoordinates()
+    postPlotCoordinatesLabels()
+
+def deleteOutputsPreDup():
+
+
+    # Get the directory path of the current script
+    dir_path = os.path.dirname(os.path.abspath(__file__))
+
+    # Specify the names of the files to be deleted
+    file_names = ["#1_PreCoordinatesLabels.png", "#3_PreCoordinates.png", "PreCoordinates.shp", 
+                  "PreCoordinates.dbf", "PreCoordinates.cpg", "PreCoordinates.shx"]
+
+    # Loop through all the files in the directory
+    for file_name in os.listdir(dir_path):
+        # Check if the file name is in the list of files to be deleted
+        if file_name in file_names:
+            # Delete the file
+            os.remove(os.path.join(dir_path, file_name))
+
+def createOutputsPreDup():
+    preCreateGeodataframeShapefile()
+    prePlotCoordinatesLabels()
+    prePlotCoordinates()
+
 
 #####################################
 
@@ -470,13 +522,8 @@ def runAccuracyAssessment():
 
 ######################################
 
-# If fewer images than flight plan, ask the user if there are any duplicate images and delete them.
-# Then compare the pre and post CSV and ammend the pre CSV to match the number of rows in the post CSV.
-# Then run accuracy assessment.
+def runFlightPlanAccuracyAssessment():
 
-
-def fixFlightPlan():
-    
     global accuracyAssessComplete
 
     while True:
@@ -492,51 +539,120 @@ def fixFlightPlan():
         askDupImage = str(input("Are there any duplicate images? "))
         
         if askDupImage in ["Yes", "yes", "Y", "y"]:
+
+            global userDup2
+            global dup2
             
             # Ask the user to input the duplicate image then delete that image
             dupImage = str(input("What is the duplicate image number? ") + ".jpg")
             os.remove(dupImage)
+            userDup2 = True
+            dup2 = dupImage
+
             ######## Delete all created outputs as these will have to be recreated with the correct images
-            deleteOutputs()
+            deleteOutputsPostDup()
             # Now that the duplicates and newly created outputs have been deleted, recreate outputs using corrected data then run accuracy assessment
-            createOutputs()
+            createOutputsPostDup()
             break
         
         elif askDupImage in ["No", "no", "N", "n"]:
+            userDup2 = False
             break
         
         else:
             print("Enter yes or no")
     
-    # Then compare the pre and post CSV and ammend the pre CSV to match the number of rows in the post CSV.
+
+
+
+
+
+
+# Then compare the pre and post CSV and ammend the pre CSV to match the number of rows in the post CSV.
     
     accuracyAssessComplete = False
 
     
     
- # Open the first CSV file and count the rows
-    with open("PreCoordinates.csv", "r") as f1:
-        first_csv = list(csv.reader(f1))
-        num_rows = len(first_csv)
+# Ask the user if they want to delete individual points or a range of points from the PreCoordinates Flight Plan CSV
+# If you completed most of the flight and didn't finish the last few points, then you might want to delete individial points
+# If you only completed a fraction of the flight, you don't want to list hundered of points, so instead give the start and end points to delete the entire range
 
-    # Open the second CSV file and check if it has extra rows
-    with open("PostCoordinates.csv", "r") as f2:
-        second_csv = list(csv.reader(f2))
-        if len(second_csv) < num_rows:
-            first_csv = second_csv[:num_rows]
-
-    # Write the updated second CSV file
-    with open("PreCoordinates.csv", "w", newline="") as f3:
-        writer = csv.writer(f3)
-        writer.writerows(first_csv)
-
-    # Now the pre CSV has been ammended to reflect the post CSV
-    accuracyAssessComplete = False
-
+    global soloBulk
     
 
-    
+    while True:
 
+        askSoloBulk = str(input("\n\n\n\n\n" + 
+                "Do you want to delete individial points (e.g. 1, 2, 3) or a range of points (e.g. 1 to 250) from the preCoordinates flight plan? "))
+        
+        if askSoloBulk in ["Individual", "individual", "I", "i"]:
+
+            global deletePreSolo
+
+            # Prompt the user for the image numbers to delete
+            image_numbers = input("Enter the image numbers to delete (comma separated): ")
+            deletePreSolo = image_numbers
+
+            # Convert the user input into a list of strings
+            image_numbers = [num.strip() for num in image_numbers.split(',')]
+
+            # Open the CSV file
+            with open('PreCoordinates.csv', 'r') as csv_file:
+                # Read the CSV data into a list of dictionaries
+                data = list(csv.DictReader(csv_file))
+
+            # Delete the specified rows from the data
+            data = [row for row in data if row['Name'] not in image_numbers]
+
+            # Write the updated data back to the CSV file
+            with open('PreCoordinates.csv', 'w', newline='') as csv_file:
+                fieldnames = list(data[0].keys())
+                writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(data)
+            
+            soloBulk = True
+            break
+
+        
+        elif askSoloBulk in ["Range", "range", "R", "r"]:
+            global deletePreStart
+            global deletePreEnd
+
+            # Prompt the user for the range of image numbers to delete
+            start_num = int(input("Enter the starting image number to delete: "))
+            end_num = int(input("Enter the ending image number to delete: "))
+            deletePreStart = start_num
+            deletePreEnd = end_num
+
+            # Open the CSV file
+            with open('PreCoordinates.csv', 'r') as csv_file:
+                # Read the CSV data into a list of dictionaries
+                data = list(csv.DictReader(csv_file))
+
+            # Delete the specified rows from the data
+            data = [row for row in data if not (int(row['Name']) >= start_num and int(row['Name']) <= end_num)]
+
+            # Write the updated data back to the CSV file
+            with open('PreCoordinates.csv', 'w', newline='') as csv_file:
+                fieldnames = list(data[0].keys())
+                writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(data)
+
+            soloBulk = False
+            break
+        
+        else:
+            print("Enter individual or range")
+
+    # Delete and recreate the outputs that are incorrect now that we have made amends to the preCoordinates CSV, then run accuracy assessment.
+    deleteOutputsPreDup()
+    createOutputsPreDup()
+    createOutputsPostDup()
+    runAccuracyAssessment()
+    
 
 
 #####################################
@@ -548,7 +664,8 @@ def fixFlightPlan():
 
 def checkAccuracyAssessment(): 
     global accuracyAssessComplete                                   # Set a global variable that can be accessed outside of this function and used to print
-                                                                    # a message if the function is called                 
+    global userDup1
+    global dup1                                                                # a message if the function is called                 
  
 
     while True:
@@ -562,6 +679,7 @@ def checkAccuracyAssessment():
             
             runAccuracyAssessment()
             accuracyAssessComplete = True
+            userDup1 = False
             break
         
         
@@ -577,27 +695,32 @@ def checkAccuracyAssessment():
             
             # Ask the user to input the duplicate image then delete that image
             dupImage = str(input("What is the duplicate image number? ") + ".jpg")
+            
             os.remove(dupImage)
+            
+            dup1 = dupImage
+            userDup1 = True
         
         
         ######## Delete all created outputs as these will have to be recreated with the correct images
-            deleteOutputs()
+            deleteOutputsPostDup()
+            
         
         # Now that the duplicates and newly created outputs have been deleted, recreate outputs using corrected data then run accuracy assessment
-            createOutputs()
+            createOutputsPostDup()
             runAccuracyAssessment()
             accuracyAssessComplete = True
             break
 
 
 
-        # The number of images is less than the flight plan, this can happen if the fligt was cut short (e.g. due to poor weather conditions).
+        # The number of images is less than the flight plan, this can happen if the flight was cut short (e.g. due to poor weather conditions).
         # Because poor weather can also result in the drone going off track and taking extra images, we need the user to check the plans for duplicates.
         # If there are duplicates, we can delete them, recreate the correct outputs, then delete any excess rows from the preCoordinates.csv before running the assessment
         
         else:
-            fixFlightPlan()
-            runAccuracyAssessment()
+
+            runFlightPlanAccuracyAssessment()
             break
 
 
@@ -766,12 +889,16 @@ def prePlotCoordinates():
 # Will only convert JPEG/ JPG images, did not include PNG as this will be the format of the exported plots.
 
 def batchRename():
-
+    
+    global batchNumber
+    
     script_directory = os.path.dirname(os.path.realpath(__file__))               # Get script directory
 
     folder_path = os.path.join(script_directory)                                 # Set the path to the directory containing the files to be renamed
 
-    prefix = input("Enter the batch number: ")                                   # Prompt the user to input a prefix
+    batchNo = input("Enter the batch number: ")                                   # Prompt the user to input a prefix
+    
+    batchNumber = batchNo
 
     start_index = 1                                                              # Set the starting index
 
@@ -780,7 +907,7 @@ def batchRename():
         
         if os.path.splitext(filename)[1].lower() in ['.jpg', '.jpeg']:           # Check if the file is an image
 
-            new_filename = prefix + '#' + str(start_index) + '.jpg'              # Set the new filename
+            new_filename = batchNo + '#' + str(start_index) + '.jpg'              # Set the new filename
 
             source_path = os.path.join(folder_path, filename)                    # Set the paths to the source and destination files
             destination_path = os.path.join(folder_path, new_filename)
@@ -837,12 +964,50 @@ def deleteOutputs():
             os.remove(os.path.join(dir_path, file_name))
 
 
+###########################################
+
+# Create a folder that can store a copy of the inital outputs created by the script
+# This is so that if you make amendments to the files, you will always have a copy of the originals
+
+def createInitalFolder():
+
+    # Get the directory of the script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Define the name of the new folder
+    new_folder_name = "InitialOutputsBackup"
+
+    # Create the new folder
+    new_folder_path = os.path.join(script_dir, new_folder_name)
+    os.makedirs(new_folder_path, exist_ok=True)
+
+
+def copyInitalOutputs():
+    # Get the directory of the script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Create a new folder
+    new_folder_path = os.path.join(script_dir, "InitialOutputsBackup")
+
+    # Define the file extensions to be copied
+    file_extensions = (".png", ".csv", ".kml", ".shp", ".dbf", ".cpg", ".shx")
+
+    # Copy files with the specified extensions into the new folder
+    for file_name in os.listdir(script_dir):
+        if file_name.endswith(file_extensions):
+            source_file_path = os.path.join(script_dir, file_name)
+            destination_file_path = os.path.join(new_folder_path, file_name)
+            shutil.copy(source_file_path, destination_file_path)
+
+
 
 ##############################
 
+
+
 # Create defaults outputs for pre and post: timed rename, CSV with coordinates and grid references, shapefiles, plots of geometry with labels.
 
-def createOutputs():
+def createInitialOutputs():
     preKMZtoKML()
     prePullCoordinatesKML()
     preConvertCoordinates()
@@ -858,6 +1023,10 @@ def createOutputs():
 
     prePlotCoordinatesLabels()
     postPlotCoordinatesLabels()
+    prePlotCoordinates()
+    postPlotCoordinates()
+
+
 
 
 
@@ -882,6 +1051,11 @@ def printSummary():
     print("-Points saved as shapefile for use in GIS.")
     print("-Plots of the actual image coordinates has been saved as images (one labelled, one unlabelled), and a shapefile created for GIS use.")
 
+    print("\n\n")
+
+    print("Back ups of the initial outputs have been saved in a seperate folder.")
+
+    print("\n\n")
 
 
 
@@ -894,18 +1068,36 @@ def printSummary():
     # Print a different message depending on whether the accuracy assessment was a success
     if assessed == True and accuracyAssessComplete == True:                            # if the accuracy assessment was requested and it was a success
         print("-Accuracy assessment successful.")
-    elif assessed == True and accuracyAssessComplete == False:                         # if the accuracy assessment was requested and it was a failure
-        print("-Not enough images to match the flight plan. Precoordinates CSV ammended to match the number of images taken.")
+   
+   
+    if assessed == True and accuracyAssessComplete == True and userDup1 == True:         # if the accuracy assessment requested, duplicates deleted and it was a success
+        print(f"-Duplicate image(s) {dup1} deleted. Accuracy assessment successful.")
+    
+    if assessed == True and accuracyAssessComplete == False and userDup2 == True and soloBulk == False: 
+        print("-Not enough images to match the flight plan.")
+        print(f"-Duplicate images {dup2} deleted. preCoordinates amended by deleting images {deletePreSolo} to match postCoordinates.")
         print("-Accuracy assessment successful.")
-    else:                                                                              # if the accuracy assessment was not requested, pass (do nothing/ skip)
-        pass
+    
+    if assessed == True and accuracyAssessComplete == False and userDup2 == True and soloBulk == True: 
+        print("-Not enough images to match the flight plan.")
+        print(f"-Duplicate images {dup2} deleted. preCoordinates amended by deleting images from {deletePreStart} to {deletePreEnd} to match postCoordinates")
+        print("-Accuracy assessment successful.")
 
-
+    if assessed == True and accuracyAssessComplete == False and userDup2 == False and soloBulk == False: 
+        print("-Not enough images to match the flight plan.")
+        print(f"-preCoordinates amended by deleting images {deletePreSolo} to match postCoordinates.")
+        print("-Accuracy assessment successful.")
+    
+    if assessed == True and accuracyAssessComplete == False and userDup2 == False and soloBulk == True: 
+        print("-Not enough images to match the flight plan.")
+        print(f"-preCoordinates amended by deleting images from {deletePreStart} to {deletePreEnd} to match postCoordinates")
+        print("-Accuracy assessment successful.")
+    
 
 
     # Print a different message depending on whether the images have been batch renamed or not.
     if batched:
-        print("-All drone images renamed in order of capture time, with the batch number.")
+        print(f"-All drone images renamed in order of capture time, with the batch number {batchNumber}.")
     else: 
         print("-All drone images renamed in order of capture time.")
 
@@ -915,26 +1107,39 @@ def printSummary():
 
 ########################################################
 
-# Create defaults outputs for pre and post: timed rename, CSV with coordinates and grid references, shapefiles, plots of geometry with labels.
-createOutputs()
+def plotAllCoordinates():
+    prePlotCoordinates()
+    postPlotCoordinates()
+    prePlotCoordinatesLabels()
+    postPlotCoordinatesLabels()
 
-# Ask the user if they want to run an accuracy assessment.
-# If no, accuracy assessment skipped.
-# If yes, checkAccuracyAssessment run.
-# checkAccuracyAssessment checks if the captured images match the flight plan, accuracy assessment cannot be done if this is not the case
-# If they match, run the accuracy asssessment, otherwise: delete the duplicate and newly created outputs then recreate outputs using corrected data.
-askAccuracyAssessment() 
 
-# Plot coordinates on a figure without labels and save as an image.
-prePlotCoordinates()
-postPlotCoordinates()
+####################
 
-# Ask the user if they want to rename images with a batch number.
-# If yes, run the batchRename function.
-# If no, skip the batchRename. 
-askBatchRename()
+def flightCheck():
+    # Create defaults outputs for pre and post: timed rename, CSV with coordinates and grid references, shapefiles, plots of geometry with labels.
+    createInitialOutputs()
+    createInitalFolder()
+    copyInitalOutputs()
 
-# Print message to give a summary of the outputs created, was accuracy assessment requested, if so was it successful.
-printSummary()
+    # Ask the user if they want to run an accuracy assessment.
+    # If no, accuracy assessment skipped.
+    # If yes, checkAccuracyAssessment run.
+    # checkAccuracyAssessment checks if the captured images match the flight plan, accuracy assessment cannot be done if this is not the case
+    # If they match, run the accuracy asssessment, otherwise: delete the duplicate and newly created outputs then recreate outputs using corrected data.
+    askAccuracyAssessment() 
+
+    # Plot coordinates on a figure without labels and save as an image.
+    #plotAllCoordinates()
+
+    # Ask the user if they want to rename images with a batch number.
+    # If yes, run the batchRename function.
+    # If no, skip the batchRename. 
+    askBatchRename()
+
+    # Print message to give a summary of the outputs created, was accuracy assessment requested, if so was it successful.
+    printSummary()
 
 ######################################################
+
+flightCheck()
