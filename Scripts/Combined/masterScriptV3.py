@@ -484,10 +484,35 @@ def createOutputsPreDup():
     prePlotCoordinatesLabels()
     prePlotCoordinates()
 
+###################################
+
+# Check the postCoordinates CSV to see if the users input matches an image number, if not then reprompt until valid input given
+
+
+def checkDupImageNumber(image):
+
+    dctry_path = os.path.dirname(os.path.realpath(__file__))
+    
+    while True:
+
+        if f"{image}.jpg" in os.listdir(dctry_path):
+            break
+
+        else:
+            print("That image does not exist.")
+            newImage = input("Enter a different image number: ")
+            image = newImage
+
+
+    return image
+
+
+
+
 
 #####################################
 
- # Accuracy assessment, add results into PostCoordinates.csv
+# Accuracy assessment, add results into PostCoordinates.csv
 
 def runAccuracyAssessment():
 
@@ -531,11 +556,14 @@ def runFlightPlanAccuracyAssessment():
         print("\n\n\n\n\n" + 
                 "Accuracy assessment failed." + "\n" + 
                 "There are less captured images than in the flight plan, was the flight completed?" + "\n" + 
+                "Before we fix the flight plan, we need to check if any duplicate images were taken during the flight." + "\n"
+                "This can happen in windy conditions when the drone has to reposition itself on the flight plan." + "\n"
                 "Review the labelled plots and tell me if there are any duplicate images." + "\n" +
                 "Tip - follow the flight pattern as the numbers increase, flicking between the pre and post plot, look out for the moment the 'post' numbers not longer match the 'pre' numbers." 
                 "\n\n\n\n\n")
         
         # Ask the user if there are any duplicate images
+        
         askDupImage = str(input("Are there any duplicate images? "))
         
         if askDupImage in ["Yes", "yes", "Y", "y"]:
@@ -543,11 +571,37 @@ def runFlightPlanAccuracyAssessment():
             global userDup2
             global dup2
             
+            ####################
+            
             # Ask the user to input the duplicate image then delete that image
-            dupImage = str(input("What is the duplicate image number? ") + ".jpg")
-            os.remove(dupImage)
-            userDup2 = True
+
+            dupImage = str(input("What is the duplicate image number? "))                  # No file extension as this will be used in printing messages
+            dupImageExt = str(dupImage + ".jpg")    
+            
+            #######  Check if that number is a valid number, is it an image number in the CSV?
+    
+            dctry_path = os.path.dirname(os.path.realpath(__file__))           # Set the directory location where the images are
+    
+            while True:                                                        # Infinite loop to reprompt the user if input is incorrect
+
+                if f"{dupImage}.jpg" in os.listdir(dctry_path):                # If the input number matches an image number, break and continue script
+                    break
+
+                else:
+                    print("That image does not exist.")                        # If the input number does not match, reprompt and update the input image number
+                    newImage = input("Enter a different image number: ")
+                    dupImage = newImage
+
+            
+            dupImageExt = str(dupImage + ".jpg")                     # assign DupImage to DupImageExt again IN CASE it was changed during the checker loop previously
+           
+            ########################
+
+            # If number is valid, delete
+            os.remove(dupImageExt)
+
             dup2 = dupImage
+            userDup2 = True
 
             ######## Delete all created outputs as these will have to be recreated with the correct images
             deleteOutputsPostDup()
@@ -612,7 +666,7 @@ def runFlightPlanAccuracyAssessment():
                 writer.writeheader()
                 writer.writerows(data)
             
-            soloBulk = True
+            soloBulk = False
             break
 
         
@@ -641,7 +695,7 @@ def runFlightPlanAccuracyAssessment():
                 writer.writeheader()
                 writer.writerows(data)
 
-            soloBulk = False
+            soloBulk = True
             break
         
         else:
@@ -693,10 +747,32 @@ def checkAccuracyAssessment():
                     "Tip - follow the flight pattern as the numbers increase, flicking between the pre and post plot, look out for the moment the 'post' numbers not longer match the 'pre' numbers." 
                     "\n\n\n\n\n")
             
-            # Ask the user to input the duplicate image then delete that image
-            dupImage = str(input("What is the duplicate image number? ") + ".jpg")
+            # Ask the user to input the duplicate image
             
-            os.remove(dupImage)
+            dupImage = str(input("What is the duplicate image number? "))                  # No file extension as this will be used in printing messages
+            dupImageExt = str(dupImage + ".jpg")                                           # Add the file extension as this will be needed to delete the image
+
+            ###############  Check if that number is a valid number, is it an image number in the CSV?
+    
+            dctry_path = os.path.dirname(os.path.realpath(__file__))           # Set the directory location where the images are
+    
+            while True:                                                        # Infinite loop to reprompt the user if input is incorrect
+
+                if f"{dupImage}.jpg" in os.listdir(dctry_path):                # If the input number matches an image number, break and continue script
+                    break
+
+                else:
+                    print("That image does not exist.")                        # If the input number does not match, reprompt and update the input image number
+                    newImage = input("Enter a different image number: ")
+                    dupImage = newImage
+
+            
+            dupImageExt = str(dupImage + ".jpg")                     # assign DupImage to DupImageExt again IN CASE it was changed during the checker loop previously
+           
+            ########################
+
+            # If number is valid, delete
+            os.remove(dupImageExt)
             
             dup1 = dupImage
             userDup1 = True
