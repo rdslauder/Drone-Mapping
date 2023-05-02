@@ -598,6 +598,7 @@ def runFlightPlanAccuracyAssessment():
             ########################
 
             # If number is valid, delete
+
             os.remove(dupImageExt)
 
             dup2 = dupImage
@@ -651,6 +652,27 @@ def runFlightPlanAccuracyAssessment():
             # Convert the user input into a list of strings
             image_numbers = [num.strip() for num in image_numbers.split(',')]
 
+            ############### Check if the number(s) are valid number(s), is it a number in the flight plan within PreCoordinates.csv?
+
+            with open("PreCoordinates.csv", "r") as csv_file:
+                csv_reader = csv.DictReader(csv_file)
+                
+                # Loop through each row in the CSV file
+                for row in csv_reader:
+                    
+                    # Check if the name is in the list of names to check
+                    if row["Name"] in image_numbers:
+                        break
+                    
+                    
+                    else:
+                            print("The number(s) do not exist.")                        # If the input number does not match, reprompt and update the input image number
+                            image_numbers = input("Enter a different image number: ")
+                            image_numbers = [num.strip() for num in image_numbers.split(',')]       # Convert the user input into a list of strings
+                            deletePreSolo = start_num                                              # Reassign deletePreStart global variable to the new user input
+            
+            #############################
+
             # Open the CSV file
             with open('PreCoordinates.csv', 'r') as csv_file:
                 # Read the CSV data into a list of dictionaries
@@ -674,11 +696,57 @@ def runFlightPlanAccuracyAssessment():
             global deletePreStart
             global deletePreEnd
 
+            ############# First number to delete in range
+
             # Prompt the user for the range of image numbers to delete
             start_num = int(input("Enter the starting image number to delete: "))
-            end_num = int(input("Enter the ending image number to delete: "))
             deletePreStart = start_num
+            
+            # Check if the starting number is a valid number, is it a number in the flight plan within PreCoordinates.csv?
+
+            with open("PreCoordinates.csv", "r") as csv_file:
+                csv_reader = csv.DictReader(csv_file)
+                
+                 # Loop through each row in the CSV file
+                for row in csv_reader:
+
+                    while True:                             # Set up infinite loop to reprompt the user if they give invalid input
+
+                        # Check if the name is in the "Name" column of the current row
+                        if start_num == row["Name"]:
+                    
+                            break  # Exit the loop if the name is found
+                        
+                        else:
+                            print("That number does not exist.")                        # If the input number does not match, reprompt and update the input image number
+                            start_num = input("Enter a different image number: ")
+                            deletePreStart = start_num
+
+            #################################
+
+            ############# Last number to delete in range
+
+            end_num = int(input("Enter the ending image number to delete: "))
             deletePreEnd = end_num
+
+            with open("PreCoordinates.csv", "r") as csv_file:
+                csv_reader = csv.DictReader(csv_file)
+                
+                 # Loop through each row in the CSV file
+                for row in csv_reader:
+
+                    while True:                             # Set up infinite loop to reprompt the user if they give invalid input
+
+                        # Check if the name is in the "Name" column of the current row
+                        if end_num == row["Name"]:
+                    
+                            break  # Exit the loop if the name is found
+                        
+                        else:
+                            print("That number does not exist.")                        # If the input number does not match, reprompt and update the input image number
+                            end_num = input("Enter a different image number: ")
+                            deletePreStart = end_num
+
 
             # Open the CSV file
             with open('PreCoordinates.csv', 'r') as csv_file:
@@ -752,7 +820,7 @@ def checkAccuracyAssessment():
             dupImage = str(input("What is the duplicate image number? "))                  # No file extension as this will be used in printing messages
             dupImageExt = str(dupImage + ".jpg")                                           # Add the file extension as this will be needed to delete the image
 
-            ###############  Check if that number is a valid number, is it an image number in the CSV?
+            ###############  Check if that number is a valid number, is it an image in the directory?
     
             dctry_path = os.path.dirname(os.path.realpath(__file__))           # Set the directory location where the images are
     
@@ -1156,7 +1224,7 @@ def printSummary():
     
     if assessed == True and accuracyAssessComplete == False and userDup2 == True and soloBulk == True: 
         print("-Not enough images to match the flight plan.")
-        print(f"-Duplicate images {dup2} deleted. preCoordinates amended by deleting images from {deletePreStart} to {deletePreEnd} to match postCoordinates")
+        print(f"-Duplicate images {dup2} deleted. preCoordinates amended by deleting images from {deletePreStart} to {deletePreEnd} to match postCoordinates.")
         print("-Accuracy assessment successful.")
 
     if assessed == True and accuracyAssessComplete == False and userDup2 == False and soloBulk == False: 
@@ -1166,7 +1234,7 @@ def printSummary():
     
     if assessed == True and accuracyAssessComplete == False and userDup2 == False and soloBulk == True: 
         print("-Not enough images to match the flight plan.")
-        print(f"-preCoordinates amended by deleting images from {deletePreStart} to {deletePreEnd} to match postCoordinates")
+        print(f"-preCoordinates amended by deleting images from {deletePreStart} to {deletePreEnd} to match postCoordinates.")
         print("-Accuracy assessment successful.")
     
 
