@@ -188,6 +188,9 @@ def preCreateGeodataframeShapefile():
 
 
 def prePlotCoordinatesLabels():
+    
+    
+    global preExtents
 
     # Set the file paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -202,13 +205,25 @@ def prePlotCoordinatesLabels():
     # Join the GeoDataFrame with the CSV
     gdf = gdf.merge(df, on="Name")
 
+    # Get the min and max extents of the GeoDataFrame with a 10% buffer
+    xmin, ymin, xmax, ymax = gdf.total_bounds
+    x_buffer = 0.05 * (xmax - xmin)
+    y_buffer = 0.05 * (ymax - ymin)
+    preExtents = (xmin - x_buffer, ymin - y_buffer, xmax + x_buffer, ymax + y_buffer)
+
     # Plot the GeoDataFrame with labels
     ax = gdf.plot(markersize=10, color="red")
     for x, y, name in zip(gdf.geometry.x, gdf.geometry.y, gdf["Name"]):
-        ax.annotate(name, xy=(x, y), xytext=(3, 0), textcoords="offset points", fontsize=2)
-    
+        ax.annotate(name, xy=(x, y), xytext=(3, 0), textcoords="offset points", fontsize=4)
+
+    # Set the axes limits with the buffer
+    ax.set_xlim(preExtents[0], preExtents[2])
+    ax.set_ylim(preExtents[1], preExtents[3])
+
     # Save the plot as an image file
     plt.savefig(img_file, dpi=300)
+
+
 
     # option to show the plot as an image on screen
     # plt.show()
@@ -435,6 +450,23 @@ def postFormatCSV():
 
 ################################
 
+def preFormatCSV():
+
+    with open("PreCoordinates.csv", 'r') as f:
+        reader = csv.reader(f)
+        data = list(reader)
+    header = data[0]
+    sorted_data = sorted(data[1:], key=lambda x: int(x[header.index('Name')]))
+    sorted_data.insert(0, header)
+    
+
+    with open("PreCoordinates.csv", 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerows(sorted_data)
+
+
+####################################
+
 def deleteOutputsPostDup():
 
 
@@ -442,7 +474,7 @@ def deleteOutputsPostDup():
     dir_path = os.path.dirname(os.path.abspath(__file__))
 
     # Specify the names of the files to be deleted
-    file_names = ["#2_PostCoordinatesLabels.png", "#4_PostCoordinates.png" "PostCoordinates.csv", "PostCoordinates.shp", 
+    file_names = ["#2_PostCoordinatesLabels.png", "#4_PostCoordinates.png", "#00_CombinedCoordinates.png", "#0_CombinedCoordinatesLabels.png", "PostCoordinates.csv", "PostCoordinates.shp", 
                   "PostCoordinates.dbf", "PostCoordinates.cpg", "PostCoordinates.shx"]
 
     # Loop through all the files in the directory
@@ -459,8 +491,12 @@ def createOutputsPostDup():
     postCoordinatesWKT27700()
     postFormatCSV()
     postCreateGeodataframeShapefile()
-    postPlotCoordinates()
     postPlotCoordinatesLabels()
+    postPlotCoordinates()
+    dualPlotCoordinatesLabels()
+    dualPlotCoordinates()
+    
+    
 
 def deleteOutputsPreDup():
 
@@ -483,29 +519,6 @@ def createOutputsPreDup():
     preCreateGeodataframeShapefile()
     prePlotCoordinatesLabels()
     prePlotCoordinates()
-
-###################################
-
-# Check the postCoordinates CSV to see if the users input matches an image number, if not then reprompt until valid input given
-
-
-def checkDupImageNumber(image):
-
-    dctry_path = os.path.dirname(os.path.realpath(__file__))
-    
-    while True:
-
-        if f"{image}.jpg" in os.listdir(dctry_path):
-            break
-
-        else:
-            print("That image does not exist.")
-            newImage = input("Enter a different image number: ")
-            image = newImage
-
-
-    return image
-
 
 
 
@@ -538,7 +551,7 @@ def runAccuracyAssessment():
         distance_diffs.append(distance_diff)
 
     # Add the distance differences as a new column in the second CSV file
-    df2["Distance Difference (m)"] = distance_diffs
+    df2["Diff (m)"] = distance_diffs
 
     # Write the updated CSV file to disk, do not include index numbers (index = False)
     df2.to_csv("PostCoordinates.csv", index=False)
@@ -635,9 +648,12 @@ def runFlightPlanAccuracyAssessment():
 
     global soloBulk
     
+    print("\n\n\n\n")
+    print("Now we know there are no duplicates, we can amend the flight plan coordinates in the PreCoordinates CSV to match the actual number of images taken.")
 
     while True:
 
+        
         askSoloBulk = str(input("\n\n\n\n\n" + 
                 "Do you want to delete individial points (e.g. 1, 2, 3) or a range of points (e.g. 1 to 250) from the preCoordinates flight plan? "))
         
@@ -645,123 +661,144 @@ def runFlightPlanAccuracyAssessment():
 
             global deletePreSolo
 
-            # Prompt the user for the image numbers to delete
-            image_numbers = input("Enter the image numbers to delete (comma separated): ")
-            deletePreSolo = image_numbers
-
-            # Convert the user input into a list of strings
-            image_numbers = [num.strip() for num in image_numbers.split(',')]
 
             ############### Check if the number(s) are valid number(s), is it a number in the flight plan within PreCoordinates.csv?
 
+           # Prompt the user for the initial input image number
+            image_numbers = input("Enter the flight plan image number(s) to delete (comma-separated): ")
+            number_list = [int(num) for num in image_numbers.split(",")]
+
             with open("PreCoordinates.csv", "r") as csv_file:
-                csv_reader = csv.DictReader(csv_file)
+                # Read the CSV data into a list of lists
+                data = list(csv.reader(csv_file))
                 
-                # Loop through each row in the CSV file
-                for row in csv_reader:
-                    
-                    # Check if the name is in the list of names to check
-                    if row["Name"] in image_numbers:
-                        break
-                    
-                    
-                    else:
-                            print("The number(s) do not exist.")                        # If the input number does not match, reprompt and update the input image number
-                            image_numbers = input("Enter a different image number: ")
-                            image_numbers = [num.strip() for num in image_numbers.split(',')]       # Convert the user input into a list of strings
-                            deletePreSolo = start_num                                              # Reassign deletePreStart global variable to the new user input
+                # Extract the "Name" column from the data
+                csvNames = [int(row[0]) for row in data[1:]]
+
+            # Check if each num value is present in csvNames
+            while not all(num in csvNames for num in number_list):
+                missing_nums = [num for num in number_list if num not in csvNames]
+                print(f"Images {missing_nums} not present in PreCoordinates.csv")
+                image_numbers = input("Enter the flight plan image number(s) to delete (comma-separated): ")
+                number_list = [int(num) for num in image_numbers.split(",")]
+
+            # Convert the user input into a list of integers
+            image_numbers = [int(num.strip()) for num in image_numbers.split(",")]
+
+
+            # Reassign numbers to deletePreSolo (used to print messages later) in case they have been amended in the loop
+            deletePreSolo = image_numbers 
+
             
             #############################
-
-            # Open the CSV file
+            
             with open('PreCoordinates.csv', 'r') as csv_file:
                 # Read the CSV data into a list of dictionaries
                 data = list(csv.DictReader(csv_file))
 
-            # Delete the specified rows from the data
-            data = [row for row in data if row['Name'] not in image_numbers]
+                # Delete the specified rows from the data
+                data = [row for row in data if int(row['Name']) not in image_numbers]
 
             # Write the updated data back to the CSV file
             with open('PreCoordinates.csv', 'w', newline='') as csv_file:
-                fieldnames = list(data[0].keys())
-                writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-                writer.writeheader()
-                writer.writerows(data)
+                    fieldnames = list(data[0].keys())
+                    writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+                    writer.writeheader()
+                    writer.writerows(data)
             
             soloBulk = False
             break
 
         
+        ########################################################################
+
         elif askSoloBulk in ["Range", "range", "R", "r"]:
             global deletePreStart
             global deletePreEnd
 
-            ############# First number to delete in range
+            ################################### First number to delete in range
 
-            # Prompt the user for the range of image numbers to delete
-            start_num = int(input("Enter the starting image number to delete: "))
+            # Prompt the user for the initial input image number
+            start_num = input("Enter the first flight plan image number to delete: ")
             deletePreStart = start_num
-            
-            # Check if the starting number is a valid number, is it a number in the flight plan within PreCoordinates.csv?
+
+            ########### Check if this number is present in the PreCoordinates CSV
 
             with open("PreCoordinates.csv", "r") as csv_file:
-                csv_reader = csv.DictReader(csv_file)
-                
-                 # Loop through each row in the CSV file
-                for row in csv_reader:
+                # Read the CSV data into a list of lists
+                data = list(csv.reader(csv_file))
 
-                    while True:                             # Set up infinite loop to reprompt the user if they give invalid input
+                # Extract the "Name" column from the data
+                csvNames = [int(row[0]) for row in data[1:]]
 
-                        # Check if the name is in the "Name" column of the current row
-                        if start_num == row["Name"]:
-                    
-                            break  # Exit the loop if the name is found
-                        
-                        else:
-                            print("That number does not exist.")                        # If the input number does not match, reprompt and update the input image number
-                            start_num = input("Enter a different image number: ")
-                            deletePreStart = start_num
+            # Check if the input number is present in csvNames
+            while int(start_num) not in csvNames:
+                print(f"Image {start_num} not present in PreCoordinates.csv")
+                start_num = input("Enter a valid flight plan image number to delete: ")
 
-            #################################
+        
+            # Reassign numbers to deletePreSolo (used to print messages later) in case they have been amended in the loop
+            deletePreStart = start_num
 
-            ############# Last number to delete in range
+            
+            
 
-            end_num = int(input("Enter the ending image number to delete: "))
+
+
+            ####################################
+
+
+            # Add function to check whether the users input numbers can be matched with the contents of the PreCoordinates CSV
+
+
+            ################################################ Last number to delete in range
+
+             # Prompt the user for the initial input image number
+            end_num = input("Enter the ending image number to delete: ")
             deletePreEnd = end_num
 
+          
+
+            ###################################
+
+            ########### Check if this number is present in the PreCoordinates CSV
+
             with open("PreCoordinates.csv", "r") as csv_file:
-                csv_reader = csv.DictReader(csv_file)
-                
-                 # Loop through each row in the CSV file
-                for row in csv_reader:
+                # Read the CSV data into a list of lists
+                data = list(csv.reader(csv_file))
 
-                    while True:                             # Set up infinite loop to reprompt the user if they give invalid input
+                # Extract the "Name" column from the data
+                csvNames = [int(row[0]) for row in data[1:]]
 
-                        # Check if the name is in the "Name" column of the current row
-                        if end_num == row["Name"]:
-                    
-                            break  # Exit the loop if the name is found
-                        
-                        else:
-                            print("That number does not exist.")                        # If the input number does not match, reprompt and update the input image number
-                            end_num = input("Enter a different image number: ")
-                            deletePreStart = end_num
+            # Check if the input number is present in csvNames
+            while int(end_num) not in csvNames:
+                print(f"Image {end_num} not present in PreCoordinates.csv")
+                end_num = input("Enter a valid flight plan image number to delete: ") 
+
+            deletePreEnd = end_num
 
 
-            # Open the CSV file
+            ##############################################################
+
+            ####### Delete the range of values using the start and end numbers inputted by the user
+            intDeletePreStart = int(deletePreStart)
+            intDeletePreEnd = int(deletePreEnd)
+            numberRange = list(range(intDeletePreStart, intDeletePreEnd+1))
+            
+            
             with open('PreCoordinates.csv', 'r') as csv_file:
                 # Read the CSV data into a list of dictionaries
                 data = list(csv.DictReader(csv_file))
 
-            # Delete the specified rows from the data
-            data = [row for row in data if not (int(row['Name']) >= start_num and int(row['Name']) <= end_num)]
+                # Delete the specified rows from the data
+                data = [row for row in data if int(row['Name']) not in numberRange]
 
             # Write the updated data back to the CSV file
             with open('PreCoordinates.csv', 'w', newline='') as csv_file:
-                fieldnames = list(data[0].keys())
-                writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-                writer.writeheader()
-                writer.writerows(data)
+                    fieldnames = list(data[0].keys())
+                    writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+                    writer.writeheader()
+                    writer.writerows(data)
 
             soloBulk = True
             break
@@ -769,11 +806,16 @@ def runFlightPlanAccuracyAssessment():
         else:
             print("Enter individual or range")
 
+    # Format the preCoordinates CSV, when rows get deleted the formatting changes and rows are not sorted to align with PostCoordinates
+
+    preFormatCSV()
+
     # Delete and recreate the outputs that are incorrect now that we have made amends to the preCoordinates CSV, then run accuracy assessment.
     deleteOutputsPreDup()
     createOutputsPreDup()
     createOutputsPostDup()
     runAccuracyAssessment()
+    deleteAndRecreateShapefilePost()
     
 
 
@@ -800,6 +842,7 @@ def checkAccuracyAssessment():
         if len(preCoord['Name']) == len(postCoord['Name']):
             
             runAccuracyAssessment()
+            deleteAndRecreateShapefilePost()
             accuracyAssessComplete = True
             userDup1 = False
             break
@@ -853,6 +896,7 @@ def checkAccuracyAssessment():
         # Now that the duplicates and newly created outputs have been deleted, recreate outputs using corrected data then run accuracy assessment
             createOutputsPostDup()
             runAccuracyAssessment()
+            deleteAndRecreateShapefilePost()
             accuracyAssessComplete = True
             break
 
@@ -925,6 +969,51 @@ def postCreateGeodataframeShapefile():
     gdf.to_file(shp_file, driver='ESRI Shapefile')
 
 
+####################################
+
+# Delete the current PostCoordinates shapefile and recreate a new one from the CSV
+# This needs to be done after every accuracy assessment
+# The shapefile is created before the assessment so it's attribute table will not contain the results of the accuracy assessment
+# By recreating the shapefile, it incorporated that new CSV data into it's attribute table
+
+def deleteAndRecreateShapefilePost():
+
+    ########### Delete current PostCoordinates shapefile
+
+   # Get the directory path of the current script
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+
+    # Specify the names of the files to be deleted
+    file_names = ["PostCoordinates.shp", "PostCoordinates.dbf", "PostCoordinates.cpg", "PostCoordinates.shx"]
+
+    # Loop through all the files in the directory
+    for file_name in os.listdir(dir_path):
+        # Check if the file name is in the list of files to be deleted
+        if file_name in file_names:
+            # Delete the file
+            os.remove(os.path.join(dir_path, file_name))
+
+    
+    ########### Create a new updated shapefile
+    
+    # Set the file paths
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    csv_file = os.path.join(script_dir, "PostCoordinates.csv")
+    shp_file = os.path.join(script_dir, "PostCoordinates.shp")
+
+    # Read the CSV file into a pandas DataFrame
+    df = pd.read_csv(csv_file)
+
+    # Convert the WKT strings in the 'geometry' column to GeoSeries
+    geoms = gpd.GeoSeries.from_wkt(df['Geometry'])
+
+    # Create a GeoDataFrame with the WKT geometries and the original data
+    gdf = gpd.GeoDataFrame(df, geometry=geoms)
+
+    # Write the GeoDataFrame to a shapefile
+    gdf.to_file(shp_file, driver='ESRI Shapefile')
+    
+
 
 ###########################
 
@@ -935,7 +1024,7 @@ def postCreateGeodataframeShapefile():
 
 
 def postPlotCoordinatesLabels():
-
+    
     # Set the file paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
     shp_file = os.path.join(script_dir, "PostCoordinates.shp")
@@ -952,13 +1041,19 @@ def postPlotCoordinatesLabels():
     # Plot the GeoDataFrame with labels
     ax = gdf.plot(markersize=10, color="red")
     for x, y, name in zip(gdf.geometry.x, gdf.geometry.y, gdf["Name"]):
-        ax.annotate(name, xy=(x, y), xytext=(3, 0), textcoords="offset points", fontsize=2)
+        ax.annotate(name, xy=(x, y), xytext=(3, 0), textcoords="offset points", fontsize=4)
     
+    
+    # Set the axes limits
+    ax.set_xlim(preExtents[0], preExtents[2])
+    ax.set_ylim(preExtents[1], preExtents[3])
+
     # Save the plot as an image file
     plt.savefig(img_file, dpi=300)
 
-    # Show the plot as an image
-    #plt.show()
+    # option to show the plot as an image on screen
+    # plt.show()
+
 
 
 
@@ -986,8 +1081,14 @@ def postPlotCoordinates():
     # Plot the GeoDataFrame with labels
     ax = gdf.plot(markersize=10, color="red")
     
+    
+    # Set the axes limits
+    ax.set_xlim(preExtents[0], preExtents[2])
+    ax.set_ylim(preExtents[1], preExtents[3])
+
     # Save the plot as an image file
     plt.savefig(img_file, dpi=300)
+
 
     # Show the plot as an image
     #plt.show()
@@ -1016,18 +1117,94 @@ def prePlotCoordinates():
     # Join the GeoDataFrame with the CSV
     gdf = gdf.merge(df, on="Name")
 
-    # Plot the GeoDataFrame with labels
+    # Plot the GeoDataFrame
     ax = gdf.plot(markersize=10, color="red")
-    
+
+    # Set the axes limits
+    ax.set_xlim(preExtents[0], preExtents[2])
+    ax.set_ylim(preExtents[1], preExtents[3])
+
     # Save the plot as an image file
     plt.savefig(img_file, dpi=300)
+
 
     # option to show the plot as an image on screen
     # plt.show()
 
-        
+###########################
+
+# Create a plot that contains both the PreCoordinates and the PostCoordiantes on the same plot for easier point matching
+
+def dualPlotCoordinates():
+
+    # Set the file paths
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    pre_shp_file = os.path.join(script_dir, "PreCoordinates.shp")
+    pre_csv_file = os.path.join(script_dir, "PreCoordinates.csv")
+    post_shp_file = os.path.join(script_dir, "PostCoordinates.shp")
+    post_csv_file = os.path.join(script_dir, "PostCoordinates.csv")
+    img_file = os.path.join(script_dir, "#00_CombinedCoordinates.png")
+
+    # Read in the GeoDataFrames
+    pre_gdf = gpd.read_file(pre_shp_file)
+    pre_df = pd.read_csv(pre_csv_file)
+    post_gdf = gpd.read_file(post_shp_file)
+    post_df = pd.read_csv(post_csv_file)
+
+    # Join the GeoDataFrames with the CSVs
+    pre_gdf = pre_gdf.merge(pre_df, on="Name")
+    post_gdf = post_gdf.merge(post_df, on="Name")
+
+    # Plot the GeoDataFrames with labels
+    ax = pre_gdf.plot(markersize=10, color="red")
+    post_gdf.plot(ax=ax, markersize=10, color="blue")
+
+    # Set the axes limits
+    ax.set_xlim(preExtents[0], preExtents[2])
+    ax.set_ylim(preExtents[1], preExtents[3])
+
+    # Save the plot as an image file
+    plt.savefig(img_file, dpi=300)
+
     
 #########################################
+
+def dualPlotCoordinatesLabels():
+
+    # Set the file paths
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    pre_shp_file = os.path.join(script_dir, "PreCoordinates.shp")
+    pre_csv_file = os.path.join(script_dir, "PreCoordinates.csv")
+    post_shp_file = os.path.join(script_dir, "PostCoordinates.shp")
+    post_csv_file = os.path.join(script_dir, "PostCoordinates.csv")
+    img_file = os.path.join(script_dir, "#0_CombinedCoordinatesLabels.png")
+
+    # Read in the GeoDataFrames
+    pre_gdf = gpd.read_file(pre_shp_file)
+    pre_df = pd.read_csv(pre_csv_file)
+    post_gdf = gpd.read_file(post_shp_file)
+    post_df = pd.read_csv(post_csv_file)
+
+    # Join the GeoDataFrames with the CSVs
+    pre_gdf = pre_gdf.merge(pre_df, on="Name")
+    post_gdf = post_gdf.merge(post_df, on="Name")
+
+    # Plot the GeoDataFrames with labels
+    ax = pre_gdf.plot(markersize=10, color="red")
+    post_gdf.plot(ax=ax, markersize=10, color="blue")
+    for x, y, name in zip(pre_gdf.geometry.x, pre_gdf.geometry.y, pre_gdf["Name"]):
+        ax.annotate(name, xy=(x, y), xytext=(3, 0), textcoords="offset points", fontsize=4, color="red")
+    for x, y, name in zip(post_gdf.geometry.x, post_gdf.geometry.y, post_gdf["Name"]):
+        ax.annotate(name, xy=(x, y), xytext=(3, 0), textcoords="offset points", fontsize=4, color="blue")
+
+    # Set the axes limits
+    ax.set_xlim(preExtents[0], preExtents[2])
+    ax.set_ylim(preExtents[1], preExtents[3])
+
+    # Save the plot as an image file
+    plt.savefig(img_file, dpi=300)
+
+#######################################
 
 # Rename images with user inputting the batch number for a prefix, insert "#" between batch number and image number.
 # Will only convert JPEG/ JPG images, did not include PNG as this will be the format of the exported plots.
@@ -1166,9 +1343,12 @@ def createInitialOutputs():
     postCreateGeodataframeShapefile()
 
     prePlotCoordinatesLabels()
-    postPlotCoordinatesLabels()
     prePlotCoordinates()
+    postPlotCoordinatesLabels()
     postPlotCoordinates()
+
+    dualPlotCoordinatesLabels()
+    dualPlotCoordinates()
 
 
 
@@ -1252,10 +1432,12 @@ def printSummary():
 ########################################################
 
 def plotAllCoordinates():
-    prePlotCoordinates()
-    postPlotCoordinates()
     prePlotCoordinatesLabels()
+    prePlotCoordinates()
     postPlotCoordinatesLabels()
+    postPlotCoordinates()
+    dualPlotCoordinatesLabels()
+    dualPlotCoordinates()
 
 
 ####################

@@ -188,6 +188,9 @@ def preCreateGeodataframeShapefile():
 
 
 def prePlotCoordinatesLabels():
+    
+    
+    global preExtents
 
     # Set the file paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -202,13 +205,25 @@ def prePlotCoordinatesLabels():
     # Join the GeoDataFrame with the CSV
     gdf = gdf.merge(df, on="Name")
 
+    # Get the min and max extents of the GeoDataFrame with a 10% buffer
+    xmin, ymin, xmax, ymax = gdf.total_bounds
+    x_buffer = 0.05 * (xmax - xmin)
+    y_buffer = 0.05 * (ymax - ymin)
+    preExtents = (xmin - x_buffer, ymin - y_buffer, xmax + x_buffer, ymax + y_buffer)
+
     # Plot the GeoDataFrame with labels
     ax = gdf.plot(markersize=10, color="red")
     for x, y, name in zip(gdf.geometry.x, gdf.geometry.y, gdf["Name"]):
-        ax.annotate(name, xy=(x, y), xytext=(3, 0), textcoords="offset points", fontsize=2)
-    
+        ax.annotate(name, xy=(x, y), xytext=(3, 0), textcoords="offset points", fontsize=4)
+
+    # Set the axes limits with the buffer
+    ax.set_xlim(preExtents[0], preExtents[2])
+    ax.set_ylim(preExtents[1], preExtents[3])
+
     # Save the plot as an image file
     plt.savefig(img_file, dpi=300)
+
+
 
     # option to show the plot as an image on screen
     # plt.show()
@@ -435,6 +450,23 @@ def postFormatCSV():
 
 ################################
 
+def preFormatCSV():
+
+    with open("PreCoordinates.csv", 'r') as f:
+        reader = csv.reader(f)
+        data = list(reader)
+    header = data[0]
+    sorted_data = sorted(data[1:], key=lambda x: int(x[header.index('Name')]))
+    sorted_data.insert(0, header)
+    
+
+    with open("PreCoordinates.csv", 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerows(sorted_data)
+
+
+####################################
+
 def deleteOutputsPostDup():
 
 
@@ -485,9 +517,11 @@ def createOutputsPreDup():
     prePlotCoordinates()
 
 
+
+
 #####################################
 
- # Accuracy assessment, add results into PostCoordinates.csv
+# Accuracy assessment, add results into PostCoordinates.csv
 
 def runAccuracyAssessment():
 
@@ -531,11 +565,14 @@ def runFlightPlanAccuracyAssessment():
         print("\n\n\n\n\n" + 
                 "Accuracy assessment failed." + "\n" + 
                 "There are less captured images than in the flight plan, was the flight completed?" + "\n" + 
+                "Before we fix the flight plan, we need to check if any duplicate images were taken during the flight." + "\n"
+                "This can happen in windy conditions when the drone has to reposition itself on the flight plan." + "\n"
                 "Review the labelled plots and tell me if there are any duplicate images." + "\n" +
                 "Tip - follow the flight pattern as the numbers increase, flicking between the pre and post plot, look out for the moment the 'post' numbers not longer match the 'pre' numbers." 
                 "\n\n\n\n\n")
         
         # Ask the user if there are any duplicate images
+        
         askDupImage = str(input("Are there any duplicate images? "))
         
         if askDupImage in ["Yes", "yes", "Y", "y"]:
@@ -543,11 +580,38 @@ def runFlightPlanAccuracyAssessment():
             global userDup2
             global dup2
             
+            ####################
+            
             # Ask the user to input the duplicate image then delete that image
-            dupImage = str(input("What is the duplicate image number? ") + ".jpg")
-            os.remove(dupImage)
-            userDup2 = True
+
+            dupImage = str(input("What is the duplicate image number? "))                  # No file extension as this will be used in printing messages
+            dupImageExt = str(dupImage + ".jpg")    
+            
+            #######  Check if that number is a valid number, is it an image number in the CSV?
+    
+            dctry_path = os.path.dirname(os.path.realpath(__file__))           # Set the directory location where the images are
+    
+            while True:                                                        # Infinite loop to reprompt the user if input is incorrect
+
+                if f"{dupImage}.jpg" in os.listdir(dctry_path):                # If the input number matches an image number, break and continue script
+                    break
+
+                else:
+                    print("That image does not exist.")                        # If the input number does not match, reprompt and update the input image number
+                    newImage = input("Enter a different image number: ")
+                    dupImage = newImage
+
+            
+            dupImageExt = str(dupImage + ".jpg")                     # assign DupImage to DupImageExt again IN CASE it was changed during the checker loop previously
+           
+            ########################
+
+            # If number is valid, delete
+
+            os.remove(dupImageExt)
+
             dup2 = dupImage
+            userDup2 = True
 
             ######## Delete all created outputs as these will have to be recreated with the correct images
             deleteOutputsPostDup()
@@ -583,6 +647,8 @@ def runFlightPlanAccuracyAssessment():
 
     while True:
 
+        print("\n\n\n\n")
+        print("Now we know there are no duplicates, we can amend the flight plan coordinates in the PreCoordinates CSV to match the actual number of images taken.")
         askSoloBulk = str(input("\n\n\n\n\n" + 
                 "Do you want to delete individial points (e.g. 1, 2, 3) or a range of points (e.g. 1 to 250) from the preCoordinates flight plan? "))
         
@@ -590,62 +656,154 @@ def runFlightPlanAccuracyAssessment():
 
             global deletePreSolo
 
-            # Prompt the user for the image numbers to delete
-            image_numbers = input("Enter the image numbers to delete (comma separated): ")
-            deletePreSolo = image_numbers
 
-            # Convert the user input into a list of strings
-            image_numbers = [num.strip() for num in image_numbers.split(',')]
+            ############### Check if the number(s) are valid number(s), is it a number in the flight plan within PreCoordinates.csv?
 
-            # Open the CSV file
+           # Prompt the user for the initial input image number
+            image_numbers = input("Enter the flight plan image number(s) to delete (comma-separated): ")
+            number_list = [int(num) for num in image_numbers.split(",")]
+
+            with open("PreCoordinates.csv", "r") as csv_file:
+                # Read the CSV data into a list of lists
+                data = list(csv.reader(csv_file))
+                
+                # Extract the "Name" column from the data
+                csvNames = [int(row[0]) for row in data[1:]]
+
+            # Check if each num value is present in csvNames
+            while not all(num in csvNames for num in number_list):
+                missing_nums = [num for num in number_list if num not in csvNames]
+                print(f"Images {missing_nums} not present in PreCoordinates.csv")
+                image_numbers = input("Enter the flight plan image number(s) to delete (comma-separated): ")
+                number_list = [int(num) for num in image_numbers.split(",")]
+
+            # Convert the user input into a list of integers
+            image_numbers = [int(num.strip()) for num in image_numbers.split(",")]
+
+
+            # Reassign numbers to deletePreSolo (used to print messages later) in case they have been amended in the loop
+            deletePreSolo = image_numbers 
+
+            
+            #############################
+            
             with open('PreCoordinates.csv', 'r') as csv_file:
                 # Read the CSV data into a list of dictionaries
                 data = list(csv.DictReader(csv_file))
 
-            # Delete the specified rows from the data
-            data = [row for row in data if row['Name'] not in image_numbers]
+                # Delete the specified rows from the data
+                data = [row for row in data if int(row['Name']) not in image_numbers]
 
             # Write the updated data back to the CSV file
             with open('PreCoordinates.csv', 'w', newline='') as csv_file:
-                fieldnames = list(data[0].keys())
-                writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-                writer.writeheader()
-                writer.writerows(data)
+                    fieldnames = list(data[0].keys())
+                    writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+                    writer.writeheader()
+                    writer.writerows(data)
             
-            soloBulk = True
+            soloBulk = False
             break
 
         
+        ########################################################################
+
         elif askSoloBulk in ["Range", "range", "R", "r"]:
             global deletePreStart
             global deletePreEnd
 
-            # Prompt the user for the range of image numbers to delete
-            start_num = int(input("Enter the starting image number to delete: "))
-            end_num = int(input("Enter the ending image number to delete: "))
+            ################################### First number to delete in range
+
+            # Prompt the user for the initial input image number
+            start_num = input("Enter the first flight plan image number to delete: ")
             deletePreStart = start_num
+
+            ########### Check if this number is present in the PreCoordinates CSV
+
+            with open("PreCoordinates.csv", "r") as csv_file:
+                # Read the CSV data into a list of lists
+                data = list(csv.reader(csv_file))
+
+                # Extract the "Name" column from the data
+                csvNames = [int(row[0]) for row in data[1:]]
+
+            # Check if the input number is present in csvNames
+            while int(start_num) not in csvNames:
+                print(f"Image {start_num} not present in PreCoordinates.csv")
+                start_num = input("Enter a valid flight plan image number to delete: ")
+
+        
+            # Reassign numbers to deletePreSolo (used to print messages later) in case they have been amended in the loop
+            deletePreStart = start_num
+
+            
+            
+
+
+
+            ####################################
+
+
+            # Add function to check whether the users input numbers can be matched with the contents of the PreCoordinates CSV
+
+
+            ################################################ Last number to delete in range
+
+             # Prompt the user for the initial input image number
+            end_num = input("Enter the ending image number to delete: ")
             deletePreEnd = end_num
 
-            # Open the CSV file
+          
+
+            ###################################
+
+            ########### Check if this number is present in the PreCoordinates CSV
+
+            with open("PreCoordinates.csv", "r") as csv_file:
+                # Read the CSV data into a list of lists
+                data = list(csv.reader(csv_file))
+
+                # Extract the "Name" column from the data
+                csvNames = [int(row[0]) for row in data[1:]]
+
+            # Check if the input number is present in csvNames
+            while int(end_num) not in csvNames:
+                print(f"Image {end_num} not present in PreCoordinates.csv")
+                end_num = input("Enter a valid flight plan image number to delete: ") 
+
+            deletePreEnd = end_num
+
+
+            ##############################################################
+
+            ####### Delete the range of values using the start and end numbers inputted by the user
+            intDeletePreStart = int(deletePreStart)
+            intDeletePreEnd = int(deletePreEnd)
+            numberRange = list(range(intDeletePreStart, intDeletePreEnd+1))
+            
+            
             with open('PreCoordinates.csv', 'r') as csv_file:
                 # Read the CSV data into a list of dictionaries
                 data = list(csv.DictReader(csv_file))
 
-            # Delete the specified rows from the data
-            data = [row for row in data if not (int(row['Name']) >= start_num and int(row['Name']) <= end_num)]
+                # Delete the specified rows from the data
+                data = [row for row in data if int(row['Name']) not in numberRange]
 
             # Write the updated data back to the CSV file
             with open('PreCoordinates.csv', 'w', newline='') as csv_file:
-                fieldnames = list(data[0].keys())
-                writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
-                writer.writeheader()
-                writer.writerows(data)
+                    fieldnames = list(data[0].keys())
+                    writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
+                    writer.writeheader()
+                    writer.writerows(data)
 
-            soloBulk = False
+            soloBulk = True
             break
         
         else:
             print("Enter individual or range")
+
+    # Format the preCoordinates CSV, when rows get deleted the formatting changes and rows are not sorted to align with PostCoordinates
+
+    preFormatCSV()
 
     # Delete and recreate the outputs that are incorrect now that we have made amends to the preCoordinates CSV, then run accuracy assessment.
     deleteOutputsPreDup()
@@ -693,10 +851,32 @@ def checkAccuracyAssessment():
                     "Tip - follow the flight pattern as the numbers increase, flicking between the pre and post plot, look out for the moment the 'post' numbers not longer match the 'pre' numbers." 
                     "\n\n\n\n\n")
             
-            # Ask the user to input the duplicate image then delete that image
-            dupImage = str(input("What is the duplicate image number? ") + ".jpg")
+            # Ask the user to input the duplicate image
             
-            os.remove(dupImage)
+            dupImage = str(input("What is the duplicate image number? "))                  # No file extension as this will be used in printing messages
+            dupImageExt = str(dupImage + ".jpg")                                           # Add the file extension as this will be needed to delete the image
+
+            ###############  Check if that number is a valid number, is it an image in the directory?
+    
+            dctry_path = os.path.dirname(os.path.realpath(__file__))           # Set the directory location where the images are
+    
+            while True:                                                        # Infinite loop to reprompt the user if input is incorrect
+
+                if f"{dupImage}.jpg" in os.listdir(dctry_path):                # If the input number matches an image number, break and continue script
+                    break
+
+                else:
+                    print("That image does not exist.")                        # If the input number does not match, reprompt and update the input image number
+                    newImage = input("Enter a different image number: ")
+                    dupImage = newImage
+
+            
+            dupImageExt = str(dupImage + ".jpg")                     # assign DupImage to DupImageExt again IN CASE it was changed during the checker loop previously
+           
+            ########################
+
+            # If number is valid, delete
+            os.remove(dupImageExt)
             
             dup1 = dupImage
             userDup1 = True
@@ -719,7 +899,7 @@ def checkAccuracyAssessment():
         # If there are duplicates, we can delete them, recreate the correct outputs, then delete any excess rows from the preCoordinates.csv before running the assessment
         
         else:
-            adup1 = False
+
             runFlightPlanAccuracyAssessment()
             break
 
@@ -791,7 +971,7 @@ def postCreateGeodataframeShapefile():
 
 
 def postPlotCoordinatesLabels():
-
+    
     # Set the file paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
     shp_file = os.path.join(script_dir, "PostCoordinates.shp")
@@ -808,13 +988,19 @@ def postPlotCoordinatesLabels():
     # Plot the GeoDataFrame with labels
     ax = gdf.plot(markersize=10, color="red")
     for x, y, name in zip(gdf.geometry.x, gdf.geometry.y, gdf["Name"]):
-        ax.annotate(name, xy=(x, y), xytext=(3, 0), textcoords="offset points", fontsize=2)
+        ax.annotate(name, xy=(x, y), xytext=(3, 0), textcoords="offset points", fontsize=4)
     
+    
+    # Set the axes limits
+    ax.set_xlim(preExtents[0], preExtents[2])
+    ax.set_ylim(preExtents[1], preExtents[3])
+
     # Save the plot as an image file
     plt.savefig(img_file, dpi=300)
 
-    # Show the plot as an image
-    #plt.show()
+    # option to show the plot as an image on screen
+    # plt.show()
+
 
 
 
@@ -1068,17 +1254,31 @@ def printSummary():
     # Print a different message depending on whether the accuracy assessment was a success
     if assessed == True and accuracyAssessComplete == True:                            # if the accuracy assessment was requested and it was a success
         print("-Accuracy assessment successful.")
-    if assessed == True and accuracyAssessComplete == True and userDup1 == True: 
-        print("-Accuracy assessment successful.")
+   
+   
     if assessed == True and accuracyAssessComplete == True and userDup1 == True:         # if the accuracy assessment requested, duplicates deleted and it was a success
         print(f"-Duplicate image(s) {dup1} deleted. Accuracy assessment successful.")
-    elif assessed == True and accuracyAssessComplete == False:                         # if the accuracy assessment was requested and it was a failure
-        print("-Not enough images to match the flight plan. Precoordinates CSV ammended to match the number of images taken.")
+    
+    if assessed == True and accuracyAssessComplete == False and userDup2 == True and soloBulk == False: 
+        print("-Not enough images to match the flight plan.")
+        print(f"-Duplicate images {dup2} deleted. preCoordinates amended by deleting images {deletePreSolo} to match postCoordinates.")
         print("-Accuracy assessment successful.")
-    else:                                                                              # if the accuracy assessment was not requested, pass (do nothing/ skip)
-        pass
+    
+    if assessed == True and accuracyAssessComplete == False and userDup2 == True and soloBulk == True: 
+        print("-Not enough images to match the flight plan.")
+        print(f"-Duplicate images {dup2} deleted. preCoordinates amended by deleting images from {deletePreStart} to {deletePreEnd} to match postCoordinates.")
+        print("-Accuracy assessment successful.")
 
-
+    if assessed == True and accuracyAssessComplete == False and userDup2 == False and soloBulk == False: 
+        print("-Not enough images to match the flight plan.")
+        print(f"-preCoordinates amended by deleting images {deletePreSolo} to match postCoordinates.")
+        print("-Accuracy assessment successful.")
+    
+    if assessed == True and accuracyAssessComplete == False and userDup2 == False and soloBulk == True: 
+        print("-Not enough images to match the flight plan.")
+        print(f"-preCoordinates amended by deleting images from {deletePreStart} to {deletePreEnd} to match postCoordinates.")
+        print("-Accuracy assessment successful.")
+    
 
 
     # Print a different message depending on whether the images have been batch renamed or not.
