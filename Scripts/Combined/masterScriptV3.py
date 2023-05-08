@@ -8,7 +8,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import zipfile
 import xml.etree.ElementTree as ET
-import datetime
 import shutil
 
 
@@ -250,8 +249,6 @@ def timedRename():
     # Set the path to the directory containing the files to be renamed
     folder_path = os.path.join(script_directory)
 
-    # Set the starting index
-    start_index = 1
 
     # Create an empty list to store tuples of (filename, creation time)
     files = []
