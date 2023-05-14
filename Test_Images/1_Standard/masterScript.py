@@ -503,7 +503,7 @@ def deleteOutputsPreDup():
     dir_path = os.path.dirname(os.path.abspath(__file__))
 
     # Specify the names of the files to be deleted
-    file_names = ["#1_PreCoordinatesLabels.png", "#3_PreCoordinates.png", "#00_CombinedCoordinates.png", "#0_CombinedCoordinatesLabels.png", "PreCoordinates.shp", 
+    file_names = ["#1_PreCoordinatesLabels.png", "#2_PostCoordinatesLabels.png" "#3_PreCoordinates.png", "#4_PostCoordinates.png" "#00_CombinedCoordinates.png", "#0_CombinedCoordinatesLabels.png", "PreCoordinates.shp", 
                   "PreCoordinates.dbf", "PreCoordinates.cpg", "PreCoordinates.shx"]
 
     # Loop through all the files in the directory
@@ -517,6 +517,8 @@ def createOutputsPreDup():
     preCreateGeodataframeShapefile()
     prePlotCoordinatesLabels()
     prePlotCoordinates()
+    postPlotCoordinatesLabels()
+    postPlotCoordinates()
     dualPlotCoordinatesLabels()
     dualPlotCoordinates()
 
@@ -580,6 +582,7 @@ def runFlightPlanAccuracyAssessment():
         askDupImage = str(input("Are there any duplicate images? "))
         
         if askDupImage in ["Yes", "yes", "Y", "y"]:
+            
 
             global userDup2
             global dup2
@@ -588,25 +591,23 @@ def runFlightPlanAccuracyAssessment():
             
             # Ask the user to input the duplicate image then delete that image
 
-            dupImage = str(input("What is the duplicate image number? "))                  # No file extension as this will be used in printing messages
-            dupImageExt = str(dupImage + ".jpg")    
-            
-            #######  Check if that number is a valid number, is it an image number in the CSV?
-    
-            dctry_path = os.path.dirname(os.path.realpath(__file__))           # Set the directory location where the images are
-    
-            while True:                                                        # Infinite loop to reprompt the user if input is incorrect
+            dupImage = str(input("What is the duplicate image number? "))  # No file extension as this will be used in printing messages
+            dupImageExt = str(dupImage + ".JPG")    
 
-                if f"{dupImage}.jpg" in os.listdir(dctry_path):                # If the input number matches an image number, break and continue script
-                    break
+            ####### Check if that number is a valid number, is it an image number in the CSV?
 
-                else:
-                    print("That image does not exist.")                        # If the input number does not match, reprompt and update the input image number
-                    newImage = input("Enter a different image number: ")
-                    dupImage = newImage
+            dctry_path = os.path.dirname(os.path.realpath(__file__))  # Set the directory location where the images are
+
+            while not os.path.isfile(os.path.join(dctry_path, dupImageExt)):
+                print(f"{dupImageExt} does not exist.")
+                newImage = input("Enter a different image number: ")
+                dupImage = newImage
+                dupImageExt = str(dupImage + ".JPG")
+
+            # The loop will exit when a valid image number is provided
 
             
-            dupImageExt = str(dupImage + ".jpg")                     # assign DupImage to DupImageExt again IN CASE it was changed during the checker loop previously
+            dupImageExt = str(dupImage + ".JPG")                     # assign DupImage to DupImageExt again IN CASE it was changed during the checker loop previously
            
             ########################
 
@@ -857,27 +858,27 @@ def checkAccuracyAssessment():
                     "Tip - follow the flight pattern as the numbers increase, flicking between the pre and post plot, look out for the moment the 'post' numbers not longer match the 'pre' numbers." 
                     "\n\n\n\n\n")
             
-            # Ask the user to input the duplicate image
-            
-            dupImage = str(input("What is the duplicate image number? "))                  # No file extension as this will be used in printing messages
-            dupImageExt = str(dupImage + ".jpg")                                           # Add the file extension as this will be needed to delete the image
+             # Ask the user to input the duplicate image then delete that image
 
-            ###############  Check if that number is a valid number, is it an image in the directory?
-    
-            dctry_path = os.path.dirname(os.path.realpath(__file__))           # Set the directory location where the images are
-    
-            while True:                                                        # Infinite loop to reprompt the user if input is incorrect
+            dupImage = str(input("What is the duplicate image number? "))  # No file extension as this will be used in printing messages
+            dupImageExt = str(dupImage + ".JPG")    
 
-                if f"{dupImage}.jpg" in os.listdir(dctry_path):                # If the input number matches an image number, break and continue script
-                    break
+            ####### Check if that number is a valid number, is it an image number in the CSV?
 
-                else:
-                    print("That image does not exist.")                        # If the input number does not match, reprompt and update the input image number
-                    newImage = input("Enter a different image number: ")
-                    dupImage = newImage
+            dctry_path = os.path.dirname(os.path.realpath(__file__))  # Set the directory location where the images are
+
+            while not os.path.isfile(os.path.join(dctry_path, dupImageExt)):
+                print(f"{dupImageExt} does not exist.")
+                newImage = input("Enter a different image number: ")
+                dupImage = newImage
+                dupImageExt = str(dupImage + ".JPG")
+
+            # The loop will exit when a valid image number is provided
 
             
-            dupImageExt = str(dupImage + ".jpg")                     # assign DupImage to DupImageExt again IN CASE it was changed during the checker loop previously
+            dupImageExt = str(dupImage + ".JPG")                     # assign DupImage to DupImageExt again IN CASE it was changed during the checker loop previously
+           
+           
            
             ########################
 
@@ -1398,22 +1399,22 @@ def printSummary():
     
     if assessed == True and accuracyAssessComplete == False and userDup2 == True and soloBulk == False: 
         print("-Not enough images to match the flight plan.")
-        print(f"-Duplicate images {dup2} deleted. preCoordinates amended by deleting images {deletePreSolo} to match postCoordinates.")
+        print(f"-Duplicate images {dup2} deleted. PreCoordinates amended by deleting images {deletePreSolo} to match PostCoordinates.")
         print("-Accuracy assessment successful.")
     
     if assessed == True and accuracyAssessComplete == False and userDup2 == True and soloBulk == True: 
         print("-Not enough images to match the flight plan.")
-        print(f"-Duplicate images {dup2} deleted. preCoordinates amended by deleting images from {deletePreStart} to {deletePreEnd} to match postCoordinates.")
+        print(f"-Duplicate images {dup2} deleted. PreCoordinates amended by deleting images from {deletePreStart} to {deletePreEnd} to match PostCoordinates.")
         print("-Accuracy assessment successful.")
 
     if assessed == True and accuracyAssessComplete == False and userDup2 == False and soloBulk == False: 
         print("-Not enough images to match the flight plan.")
-        print(f"-preCoordinates amended by deleting images {deletePreSolo} to match postCoordinates.")
+        print(f"-PreCoordinates amended by deleting images {deletePreSolo} to match PostCoordinates.")
         print("-Accuracy assessment successful.")
     
     if assessed == True and accuracyAssessComplete == False and userDup2 == False and soloBulk == True: 
         print("-Not enough images to match the flight plan.")
-        print(f"-preCoordinates amended by deleting images from {deletePreStart} to {deletePreEnd} to match postCoordinates.")
+        print(f"-PreCoordinates amended by deleting images from {deletePreStart} to {deletePreEnd} to match PostCoordinates.")
         print("-Accuracy assessment successful.")
     
 
