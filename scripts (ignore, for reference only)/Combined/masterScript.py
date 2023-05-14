@@ -1348,9 +1348,10 @@ def askBatchRename():
 
 ######################################################################################
 
-# Delete any outputs created so far so we do not create them again when we start the process over.
+# Delete any outputs created so far so we do not create them again when we start the process over. Use this for debugging.
 
 def deleteOutputs():
+    '''Delete any outputs created so far so we do not create them again when we start the process over. Use this for debugging.'''
 
     # Get the directory path of the current script
     dir_path = os.path.dirname(os.path.abspath(__file__))
@@ -1372,6 +1373,8 @@ def deleteOutputs():
 # This is so that if you make amendments to the files, you will always have a copy of the originals
 
 def createInitalFolder():
+    '''Create a folder that can store a copy of the inital outputs created by the script.
+    This is so that if you make amendments to the files, you will always have a copy of the originals.'''
 
     # Get the directory of the script
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1383,8 +1386,14 @@ def createInitalFolder():
     new_folder_path = os.path.join(script_dir, new_folder_name)
     os.makedirs(new_folder_path, exist_ok=True)
 
+############################################
+
+# Copy initial outputs into a seperate folder for reference later on.
 
 def copyInitalOutputs():
+    '''Copy initial outputs into a seperate folder for reference later on.'''
+
+
     # Get the directory of the script
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -1438,9 +1447,10 @@ def createInitialOutputs():
 
 #############################################
 
-# Print message to give a summary of the outputs created, was accuracy assessment requested, if so was it successful.
+# Print message to give a summary of the outputs created.
 
 def printSummary():
+    '''Print message to give a summary of the outputs created.'''
 
      
     print("\n\n\n\n\n\n\n\n\n\n")
@@ -1513,7 +1523,11 @@ def printSummary():
 
 ########################################################
 
+# Create all plots, with and without labels - PreCoordinates, PostCoordinates and Dual plots.
+
 def plotAllCoordinates():
+    '''Create all plots, with and without labels - PreCoordinates, PostCoordinates and Dual plots.'''
+
     prePlotCoordinatesLabels()
     prePlotCoordinates()
     postPlotCoordinatesLabels()
@@ -1524,7 +1538,11 @@ def plotAllCoordinates():
 
 ####################
 
+# The main function that will be called for this script, calls all other functions.
+
 def flightCheck():
+    '''The main function that will be called for this script, calls all other functions.'''
+    
     # Create defaults outputs for pre and post: timed rename, CSV with coordinates and grid references, shapefiles, plots of geometry with labels.
     createInitialOutputs()
     createInitalFolder()
