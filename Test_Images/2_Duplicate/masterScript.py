@@ -16,6 +16,7 @@ import shutil
 # Convert KMZ mission plan to KML
 
 def preKMZtoKML():
+    '''Convert KMZ mission plan to KML'''
     
     # Set the file paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -37,6 +38,7 @@ def preKMZtoKML():
 # Extract coordinates (as latitude longitude) from KML, store in CSV
 
 def prePullCoordinatesKML():
+    '''Extract coordinates (as latitude longitude) from KML, store in CSV.'''
 
     # Get the path of the KML file in the same directory as the script
     dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -78,6 +80,7 @@ def prePullCoordinatesKML():
 # Convert latitude longitude (EPSG:4326) to British National Grid (EPSG:27700), store as a new column in the same CSV
 
 def preConvertCoordinates():
+    '''Convert latitude longitude (EPSG:4326) to British National Grid (EPSG:27700), store as a new column in the same CSV.'''
 
     # Define input and output CRSs using EPSG codes
     input_crs = pyproj.CRS("EPSG:4326")
@@ -121,6 +124,7 @@ def preConvertCoordinates():
 # Convert grid references into WKT
 
 def preCoordinatesWKT27700():
+    '''Convert grid references into WKT.'''
 
     # Define the input and output files
     csv_file = "PreCoordinates.csv"
@@ -158,6 +162,7 @@ def preCoordinatesWKT27700():
 # Create GeoDataFrame and shapefile
 
 def preCreateGeodataframeShapefile():
+    '''Create GeoDataFrame and shapefile.'''
 
     # Set the file paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -188,6 +193,11 @@ def preCreateGeodataframeShapefile():
 
 
 def prePlotCoordinatesLabels():
+    '''Plot coordinates on a figure with labels and save as an image.
+    Label size = 4
+    Had to add a hash and number as prefix so that the images are always next to each other.
+    Allows user to flick between images and compare without interruption.
+    Store the extents in a global variable so that they can be used one all the other plots'''
     
     
     global preExtents
@@ -243,6 +253,12 @@ def prePlotCoordinatesLabels():
 # Will only convert JPEG images, did not include PNG as this will be the format of the exported plots.
 
 def timedRename(): 
+    '''Rename all the images from 1, based on their time/ date of creation. This ensures that the image numbers match up with the flight plan.
+    Check that the images have their original creation time in the image metadata.
+    When a file is copied, the file's "Created date" becomes the "Modified date" and the current date (when the file is copied) becomes the "Created date".
+    This will result in the created date being later than the modified date and they will not sort into their true order of creation.
+    An if/ else statement has been added to account for this.
+    Will only convert JPEG images, did not include PNG as this will be the format of the exported plots.'''
 
     # Get script directory
     script_directory = os.path.dirname(os.path.realpath(__file__))
@@ -291,6 +307,7 @@ def timedRename():
 # Pull GPS coordinates from image EXIF data (and convert degrees/minutes/seconds to latitude longitude), store in a CSV with image number
 
 def postImagePullCoordinates():
+    '''Pull GPS coordinates from image EXIF data (and convert degrees/minutes/seconds to latitude longitude), store in a CSV with image number.'''
 
     # get the directory path where the script is located
     script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -344,6 +361,7 @@ def postImagePullCoordinates():
 # Convert latitude longitude (EPSG:4326) to British National Grid (EPSG:27700), store as a new column in the same CSV
 
 def postConvertCoordinates():
+    '''Convert latitude longitude (EPSG:4326) to British National Grid (EPSG:27700), store as a new column in the same CSV.'''
 
     # Define input and output CRSs using EPSG codes
     input_crs = pyproj.CRS('EPSG:4326')
@@ -387,6 +405,7 @@ def postConvertCoordinates():
 # Convert reprojected coordinates (EPSG:27700) to WKT representation of geometry
 
 def postCoordinatesWKT27700():
+    '''Convert reprojected coordinates (EPSG:27700) to WKT representation of geometry.'''
 
     # Define the input and output files
     csv_file = "PostCoordinates.csv"
@@ -424,6 +443,7 @@ def postCoordinatesWKT27700():
 # Format PostCoordinates CSV so that the image numbers align with PreCoordinates CSV and can be passed into the accuracy assessment
 
 def postFormatCSV():
+    '''Format PostCoordinates CSV so that the image numbers align with PreCoordinates CSV and can be passed into the accuracy assessment.'''
 
     # Open the CSV file for reading
     with open("PostCoordinates.csv", "r") as infile:
@@ -449,6 +469,7 @@ def postFormatCSV():
 ################################
 
 def preFormatCSV():
+    '''Format PreCoordinates CSV so that the image numbers align with PostCoordinates CSV and can be passed into the accuracy assessment'''
 
     with open("PreCoordinates.csv", 'r') as f:
         reader = csv.reader(f)
@@ -465,7 +486,10 @@ def preFormatCSV():
 
 ####################################
 
+# After a duplicate image is deleted, remove the outputs that are no longer representative so they can be recreated with the updated data.
+
 def deleteOutputsPostDup():
+    '''After a duplicate image is deleted, remove the outputs that are no longer representative so they can be recreated with the updated data.'''
 
 
     # Get the directory path of the current script
@@ -482,7 +506,14 @@ def deleteOutputsPostDup():
             # Delete the file
             os.remove(os.path.join(dir_path, file_name))
 
+########################################
+
+# Create initial outputs that are no longer valid now that duplicate images have been deleted
+
+
 def createOutputsPostDup():
+    '''Create initial outputs that are no longer valid now that duplicate images have been deleted'''
+
     timedRename()
     postImagePullCoordinates()
     postConvertCoordinates()
@@ -494,9 +525,12 @@ def createOutputsPostDup():
     dualPlotCoordinatesLabels()
     dualPlotCoordinates()
     
-    
+#####################################
+
+# After rows from the PreCoordinates (flight plan) CSV are deleted, remove the outputs that are no longer representative so they can be recreated with the updated data.
 
 def deleteOutputsPreDup():
+    '''After rows from the PreCoordinates (flight plan) CSV are deleted, remove the outputs that are no longer representative so they can be recreated with the updated data.'''
 
 
     # Get the directory path of the current script
@@ -513,7 +547,14 @@ def deleteOutputsPreDup():
             # Delete the file
             os.remove(os.path.join(dir_path, file_name))
 
+
+#############################################
+
+# Create outputs that are no longer valid now that rows from the PreCoordinates (flight plan) CSV are deleted - All plots and the PreCoordinates shapefile.
+
 def createOutputsPreDup():
+    '''Create outputs that are no longer valid now that rows from the PreCoordinates (flight plan) CSV are deleted - 
+    All plots and the PreCoordinates shapefile.'''
     preCreateGeodataframeShapefile()
     prePlotCoordinatesLabels()
     prePlotCoordinates()
@@ -530,6 +571,7 @@ def createOutputsPreDup():
 # Accuracy assessment, add results into PostCoordinates.csv
 
 def runAccuracyAssessment():
+    '''Accuracy assessment, add results into PostCoordinates.csv'''
 
 
     # Read in the two CSV files
@@ -562,7 +604,12 @@ def runAccuracyAssessment():
 
 ######################################
 
+# Less images than in the flight plan, flight not completed. Guide the user to delete any duplicates and the points in the flight plan that were not captured.
+# Then run the accuracy assessment.
+
 def runFlightPlanAccuracyAssessment():
+    '''Less images than in the flight plan, flight not completed. Guide the user to delete any duplicates and the points in the flight plan that were not captured.
+    Then run the accuracy assessment.'''
 
     global accuracyAssessComplete
 
@@ -823,10 +870,15 @@ def runFlightPlanAccuracyAssessment():
 
 # Define the condition to check if the captured images match the flight plan
 # If they match, run the accuracy asssessment
- # If there are more images than points in the flight plan, delete the duplicate and newly created outputs then recreate outputs using corrected data, run acc assessment
- # If fewer images than flight plan, run fixFlightPlan to amend preCoordinates CSV so the accuracy assessment can be done
+# If there are more images than points in the flight plan, delete the duplicate and newly created outputs then recreate outputs using corrected data, run acc assessment
+# If fewer images than flight plan, run fixFlightPlan to amend preCoordinates CSV so the accuracy assessment can be done
 
 def checkAccuracyAssessment(): 
+    '''Define the condition to check if the captured images match the flight plan. If they match, run the accuracy asssessment.
+    If there are more images than points in the flight plan, delete the duplicate and newly created outputs then recreate outputs using corrected data, run acc assessment
+    If fewer images than flight plan, run fixFlightPlan to amend preCoordinates CSV so the accuracy assessment can be done.'''
+
+
     global accuracyAssessComplete                                   # Set a global variable that can be accessed outside of this function and used to print
     global userDup1
     global dup1                                                                # a message if the function is called                 
@@ -923,6 +975,10 @@ def checkAccuracyAssessment():
 # If yes, checkAccuracyAssessment run.
 
 def askAccuracyAssessment():
+    '''Ask the user if they want to run an accuracy assessment.
+    If no, accuracy assessment skipped.
+    If yes, checkAccuracyAssessment run.'''
+
     global assessed                                                    # Set a global variable that can be accessed outside of this function and used to print
                                                                        # a message if the function is called
  
@@ -950,6 +1006,7 @@ def askAccuracyAssessment():
 # Create GeoDataFrame and shapefile
 
 def postCreateGeodataframeShapefile():
+    '''Create GeoDataFrame and shapefile.'''
 
     # Set the file paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -977,6 +1034,10 @@ def postCreateGeodataframeShapefile():
 # By recreating the shapefile, it incorporated that new CSV data into it's attribute table
 
 def deleteAndRecreateShapefilePost():
+    '''Delete the current PostCoordinates shapefile and recreate a new one from the CSV.
+    This needs to be done after every accuracy assessment.
+    The shapefile is created before the assessment so it's attribute table will not contain the results of the accuracy assessment.
+    By recreating the shapefile, it incorporated that new CSV data into it's attribute table.'''
 
     ########### Delete current PostCoordinates shapefile
 
@@ -1024,6 +1085,10 @@ def deleteAndRecreateShapefilePost():
 
 
 def postPlotCoordinatesLabels():
+    '''Plot coordinates on a figure with labels and save as an image.
+    Label size = 4.
+    Had to add a hash and number as prefix so that they images are always next to each other.
+    Allows user to flick between images and compare without interruption.'''
     
     # Set the file paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1064,6 +1129,9 @@ def postPlotCoordinatesLabels():
 # Allows user to flick between images and compare without interruption.
 
 def postPlotCoordinates():
+    '''Plot pre coordinates on a figure without labels and save as an image.
+    Had to add a hash and number as prefix so that they images are always next to each other.
+    Allows user to flick between images and compare without interruption.'''
 
     # Set the file paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1103,6 +1171,9 @@ def postPlotCoordinates():
 
 
 def prePlotCoordinates():
+    '''Plot post coordinates on a figure without labels and save as an image.
+    Had to add a hash and number as prefix so that they images are always next to each other.
+    Allows user to flick between images and compare without interruption.'''
 
     # Set the file paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1133,9 +1204,10 @@ def prePlotCoordinates():
 
 ###########################
 
-# Create a plot that contains both the PreCoordinates and the PostCoordiantes on the same plot for easier point matching
+# Create a plot that contains both the PreCoordinates and the PostCoordinates on the same plot for easier point matching
 
 def dualPlotCoordinates():
+    '''Create a plot that contains both the PreCoordinates and the PostCoordiantes on the same plot for easier point matching.'''
 
     # Set the file paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1169,7 +1241,10 @@ def dualPlotCoordinates():
     
 #########################################
 
+# Create a plot that contains both the PreCoordinates and the PostCoordinates with labels on the same plot for easier point matching
+
 def dualPlotCoordinatesLabels():
+    '''Create a plot that contains both the PreCoordinates and the PostCoordinates with labels on the same plot for easier point matching.'''
 
     # Set the file paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1210,6 +1285,8 @@ def dualPlotCoordinatesLabels():
 # Will only convert JPEG/ JPG images, did not include PNG as this will be the format of the exported plots.
 
 def batchRename():
+    '''Rename images with user inputting the batch number for a prefix, insert "#" between batch number and image number.
+    Will only convert JPEG/ JPG images, did not include PNG as this will be the format of the exported plots.'''
     
     global batchNumber
     
@@ -1246,6 +1323,10 @@ def batchRename():
 # If no, skip the batchRename.
 
 def askBatchRename():
+    '''Ask the user if they want to rename images with a batch number.
+    If yes, run the batchRename function.
+    If no, skip the batchRename.'''
+
     global batched  
     while True:                                                  # set up infinite loop so we can reprompt the user if they enter invalid input
         request = str(input("Do you want to rename the images with a batch number? "))              # Ask the user if they want to batch rename, pass input to variable
@@ -1267,9 +1348,10 @@ def askBatchRename():
 
 ######################################################################################
 
-# Delete any outputs created so far so we do not create them again when we start the process over.
+# Delete any outputs created so far so we do not create them again when we start the process over. Use this for debugging.
 
 def deleteOutputs():
+    '''Delete any outputs created so far so we do not create them again when we start the process over. Use this for debugging.'''
 
     # Get the directory path of the current script
     dir_path = os.path.dirname(os.path.abspath(__file__))
@@ -1291,6 +1373,8 @@ def deleteOutputs():
 # This is so that if you make amendments to the files, you will always have a copy of the originals
 
 def createInitalFolder():
+    '''Create a folder that can store a copy of the inital outputs created by the script.
+    This is so that if you make amendments to the files, you will always have a copy of the originals.'''
 
     # Get the directory of the script
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1302,8 +1386,14 @@ def createInitalFolder():
     new_folder_path = os.path.join(script_dir, new_folder_name)
     os.makedirs(new_folder_path, exist_ok=True)
 
+############################################
+
+# Copy initial outputs into a seperate folder for reference later on.
 
 def copyInitalOutputs():
+    '''Copy initial outputs into a seperate folder for reference later on.'''
+
+
     # Get the directory of the script
     script_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -1329,6 +1419,7 @@ def copyInitalOutputs():
 # Create defaults outputs for pre and post: timed rename, CSV with coordinates and grid references, shapefiles, plots of geometry with labels.
 
 def createInitialOutputs():
+    '''Create defaults outputs for pre and post: timed rename, CSV with coordinates and grid references, shapefiles, plots of geometry with labels.'''
     preKMZtoKML()
     prePullCoordinatesKML()
     preConvertCoordinates()
@@ -1356,9 +1447,10 @@ def createInitialOutputs():
 
 #############################################
 
-# Print message to give a summary of the outputs created, was accuracy assessment requested, if so was it successful.
+# Print message to give a summary of the outputs created.
 
 def printSummary():
+    '''Print message to give a summary of the outputs created.'''
 
      
     print("\n\n\n\n\n\n\n\n\n\n")
@@ -1431,7 +1523,11 @@ def printSummary():
 
 ########################################################
 
+# Create all plots, with and without labels - PreCoordinates, PostCoordinates and Dual plots.
+
 def plotAllCoordinates():
+    '''Create all plots, with and without labels - PreCoordinates, PostCoordinates and Dual plots.'''
+
     prePlotCoordinatesLabels()
     prePlotCoordinates()
     postPlotCoordinatesLabels()
@@ -1442,7 +1538,11 @@ def plotAllCoordinates():
 
 ####################
 
+# The main function that will be called for this script, calls all other functions.
+
 def flightCheck():
+    '''The main function that will be called for this script, calls all other functions.'''
+    
     # Create defaults outputs for pre and post: timed rename, CSV with coordinates and grid references, shapefiles, plots of geometry with labels.
     createInitialOutputs()
     createInitalFolder()
