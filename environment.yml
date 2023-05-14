@@ -4,7 +4,11 @@ channels:
   - defaults
 dependencies:
   - python
+  - pandas
   - geopandas
+  - shapely.geometry
+  - pyproj
+  - matplotlib.pyplot
   - cartopy>=0.21
   - notebook
   - rasterio
