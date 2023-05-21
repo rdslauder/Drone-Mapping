@@ -11,12 +11,19 @@ import xml.etree.ElementTree as ET
 import shutil
 
 
-######################################
 
-# Convert KMZ mission plan to KML
+########################################################################################################################################################################
+########################################################################################################################################################################
+########################################################################################################################################################################
+                                                                             # PRECOORDINATES #
+########################################################################################################################################################################
+########################################################################################################################################################################
+########################################################################################################################################################################
+
+# (PreCoordinates) Convert KMZ mission plan to KML
 
 def preKMZtoKML():
-    '''Convert KMZ mission plan to KML'''
+    '''(PreCoordinates) Convert KMZ mission plan to KML'''
     
     # Set the file paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -31,14 +38,12 @@ def preKMZtoKML():
                     kml_file_out.write(kml_file_in_zip.read())
                     break
 
+##########################################################################################
 
-
-#################################
-
-# Extract coordinates (as latitude longitude) from KML, store in CSV
+# (PreCoordinates) Extract coordinates (as latitude longitude) from KML, store in CSV
 
 def prePullCoordinatesKML():
-    '''Extract coordinates (as latitude longitude) from KML, store in CSV.'''
+    '''(PreCoordinates) Extract coordinates (as latitude longitude) from KML, store in CSV.'''
 
     # Get the path of the KML file in the same directory as the script
     dir_path = os.path.dirname(os.path.realpath(__file__))
@@ -73,14 +78,12 @@ def prePullCoordinatesKML():
             # Write the latitude and longitude to the CSV file
             writer.writerow([name, latitude, longitude])
 
+##########################################################################################
 
-
-############################################
-
-# Convert latitude longitude (EPSG:4326) to British National Grid (EPSG:27700), store as a new column in the same CSV
+# (PreCoordinates) Convert latitude longitude (EPSG:4326) to British National Grid (EPSG:27700), store as a new column in the same CSV
 
 def preConvertCoordinates():
-    '''Convert latitude longitude (EPSG:4326) to British National Grid (EPSG:27700), store as a new column in the same CSV.'''
+    '''(PreCoordinates) Convert latitude longitude (EPSG:4326) to British National Grid (EPSG:27700), store as a new column in the same CSV.'''
 
     # Define input and output CRSs using EPSG codes
     input_crs = pyproj.CRS("EPSG:4326")
@@ -117,14 +120,12 @@ def preConvertCoordinates():
         for row in output_rows:
             writer.writerow(row)
 
+##########################################################################################
 
-
-##########################
-
-# Convert grid references into WKT
+# (PreCoordinates) Convert grid references into WKT
 
 def preCoordinatesWKT27700():
-    '''Convert grid references into WKT.'''
+    '''(PreCoordinates) Convert grid references into WKT.'''
 
     # Define the input and output files
     csv_file = "PreCoordinates.csv"
@@ -155,14 +156,31 @@ def preCoordinatesWKT27700():
         writer.writerow(headers)
         writer.writerows(data)
 
+##########################################################################################
 
+# (PreCoordinates) Format PreCoordinates CSV so that the image numbers align with PostCoordinates CSV and can be passed into the accuracy assessment
 
-#############################
+def preFormatCSV():
+    '''(PreCoordinates) Format PreCoordinates CSV so that the image numbers align with PostCoordinates CSV and can be passed into the accuracy assessment'''
 
-# Create GeoDataFrame and shapefile
+    with open("PreCoordinates.csv", 'r') as f:
+        reader = csv.reader(f)
+        data = list(reader)
+    header = data[0]
+    sorted_data = sorted(data[1:], key=lambda x: int(x[header.index('Name')]))
+    sorted_data.insert(0, header)
+    
+
+    with open("PreCoordinates.csv", 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerows(sorted_data)
+
+##########################################################################################
+
+# (PreCoordinates) Create GeoDataFrame and shapefile
 
 def preCreateGeodataframeShapefile():
-    '''Create GeoDataFrame and shapefile.'''
+    '''(PreCoordinates) Create GeoDataFrame and shapefile.'''
 
     # Set the file paths
     script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -183,67 +201,15 @@ def preCreateGeodataframeShapefile():
 
 
 
-#############################
+########################################################################################################################################################################
+########################################################################################################################################################################
+########################################################################################################################################################################
+                                                                             # POSTCOORDINATES #
+########################################################################################################################################################################
+########################################################################################################################################################################
+########################################################################################################################################################################
 
-# plot coordinates on a figure with labels and save as an image.
-# Label size = 4
-# Had to add a hash and number as prefix so that the images are always next to each other.
-# Allows user to flick between images and compare without interruption.
-# Store the extents in a global variable so that they can be used one all the other plots
-
-
-def prePlotCoordinatesLabels():
-    '''Plot coordinates on a figure with labels and save as an image.
-    Label size = 4
-    Had to add a hash and number as prefix so that the images are always next to each other.
-    Allows user to flick between images and compare without interruption.
-    Store the extents in a global variable so that they can be used one all the other plots'''
-    
-    
-    global preExtents
-
-    # Set the file paths
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    shp_file = os.path.join(script_dir, "PreCoordinates.shp")
-    img_file = os.path.join(script_dir, "#1_PreCoordinatesLabels.png")
-    csv_file = os.path.join(script_dir, "PreCoordinates.csv")
-
-    # Read in the GeoDataFrame
-    gdf = gpd.read_file(shp_file)
-    df = pd.read_csv(csv_file)
-
-    # Join the GeoDataFrame with the CSV
-    gdf = gdf.merge(df, on="Name")
-
-    # Get the min and max extents of the GeoDataFrame with a 10% buffer
-    xmin, ymin, xmax, ymax = gdf.total_bounds
-    x_buffer = 0.05 * (xmax - xmin)
-    y_buffer = 0.05 * (ymax - ymin)
-    preExtents = (xmin - x_buffer, ymin - y_buffer, xmax + x_buffer, ymax + y_buffer)
-
-    # Plot the GeoDataFrame with labels
-    ax = gdf.plot(markersize=10, color="red")
-    for x, y, name in zip(gdf.geometry.x, gdf.geometry.y, gdf["Name"]):
-        ax.annotate(name, xy=(x, y), xytext=(3, 0), textcoords="offset points", fontsize=4)
-
-    # Set the axes limits with the buffer
-    ax.set_xlim(preExtents[0], preExtents[2])
-    ax.set_ylim(preExtents[1], preExtents[3])
-
-    # Save the plot as an image file
-    plt.savefig(img_file, dpi=300)
-
-
-
-    # option to show the plot as an image on screen
-    # plt.show()
-
-
-
-####################################################################################################################################################################
-# POST #
-####################################################################################################################################################################
-
+# (PostCoordinates)
 # Rename all the images from 1, based on their time/ date of creation. 
 # This ensures that the image numbers match up with the flight plan.
 # Check that the images have their original creation time in the image metadata.
@@ -253,7 +219,7 @@ def prePlotCoordinatesLabels():
 # Will only convert JPEG images, did not include PNG as this will be the format of the exported plots.
 
 def timedRename(): 
-    '''Rename all the images from 1, based on their time/ date of creation. This ensures that the image numbers match up with the flight plan.
+    '''(PostCoordinates) Rename all the images from 1, based on their time/ date of creation. This ensures that the image numbers match up with the flight plan.
     Check that the images have their original creation time in the image metadata.
     When a file is copied, the file's "Created date" becomes the "Modified date" and the current date (when the file is copied) becomes the "Created date".
     This will result in the created date being later than the modified date and they will not sort into their true order of creation.
@@ -300,14 +266,12 @@ def timedRename():
         # Rename the file
         os.rename(source_path, destination_path)
 
+##########################################################################################
 
-
-####################################################
-
-# Pull GPS coordinates from image EXIF data (and convert degrees/minutes/seconds to latitude longitude), store in a CSV with image number
+# (PostCoordinates) Pull GPS coordinates from image EXIF data (and convert degrees/minutes/seconds to latitude longitude), store in a CSV with image number
 
 def postImagePullCoordinates():
-    '''Pull GPS coordinates from image EXIF data (and convert degrees/minutes/seconds to latitude longitude), store in a CSV with image number.'''
+    '''(PostCoordinates) Pull GPS coordinates from image EXIF data (and convert degrees/minutes/seconds to latitude longitude), store in a CSV with image number.'''
 
     # get the directory path where the script is located
     script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -354,14 +318,12 @@ def postImagePullCoordinates():
         for row in gps_data_list:
             writer.writerow(row)
 
+##########################################################################################
 
-
-##################################
-
-# Convert latitude longitude (EPSG:4326) to British National Grid (EPSG:27700), store as a new column in the same CSV
+# (PostCoordinates) Convert latitude longitude (EPSG:4326) to British National Grid (EPSG:27700), store as a new column in the same CSV
 
 def postConvertCoordinates():
-    '''Convert latitude longitude (EPSG:4326) to British National Grid (EPSG:27700), store as a new column in the same CSV.'''
+    '''(PostCoordinates) Convert latitude longitude (EPSG:4326) to British National Grid (EPSG:27700), store as a new column in the same CSV.'''
 
     # Define input and output CRSs using EPSG codes
     input_crs = pyproj.CRS('EPSG:4326')
@@ -398,14 +360,12 @@ def postConvertCoordinates():
         for row in output_rows:
             writer.writerow(row)
 
+##########################################################################################
 
-
-##############################
-
-# Convert reprojected coordinates (EPSG:27700) to WKT representation of geometry
+# (PostCoordinates) Convert reprojected coordinates (EPSG:27700) to WKT representation of geometry
 
 def postCoordinatesWKT27700():
-    '''Convert reprojected coordinates (EPSG:27700) to WKT representation of geometry.'''
+    '''(PostCoordinates) Convert reprojected coordinates (EPSG:27700) to WKT representation of geometry.'''
 
     # Define the input and output files
     csv_file = "PostCoordinates.csv"
@@ -436,14 +396,12 @@ def postCoordinatesWKT27700():
         writer.writerow(headers)
         writer.writerows(data)
 
+##########################################################################################
 
-
-#####################################
-
-# Format PostCoordinates CSV so that the image numbers align with PreCoordinates CSV and can be passed into the accuracy assessment
+# (PostCoordinates) Format PostCoordinates CSV so that the image numbers align with PreCoordinates CSV and can be passed into the accuracy assessment
 
 def postFormatCSV():
-    '''Format PostCoordinates CSV so that the image numbers align with PreCoordinates CSV and can be passed into the accuracy assessment.'''
+    '''(PostCoordinates) Format PostCoordinates CSV so that the image numbers align with PreCoordinates CSV and can be passed into the accuracy assessment.'''
 
     # Open the CSV file for reading
     with open("PostCoordinates.csv", "r") as infile:
@@ -465,26 +423,431 @@ def postFormatCSV():
         # Write the sorted rows
         writer.writerows(sorted_rows)
 
+##########################################################################################
 
-################################
+# (PostCoordinates) Create PostCoordinates GeoDataFrame and shapefile
 
-def preFormatCSV():
-    '''Format PreCoordinates CSV so that the image numbers align with PostCoordinates CSV and can be passed into the accuracy assessment'''
+def postCreateGeodataframeShapefile():
+    '''(PostCoordinates) Create PostCoordinates GeoDataFrame and shapefile.'''
 
-    with open("PreCoordinates.csv", 'r') as f:
-        reader = csv.reader(f)
-        data = list(reader)
-    header = data[0]
-    sorted_data = sorted(data[1:], key=lambda x: int(x[header.index('Name')]))
-    sorted_data.insert(0, header)
+    # Set the file paths
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    csv_file = os.path.join(script_dir, "PostCoordinates.csv")
+    shp_file = os.path.join(script_dir, "PostCoordinates.shp")
+
+    # Read the CSV file into a pandas DataFrame
+    df = pd.read_csv(csv_file)
+
+    # Convert the WKT strings in the 'geometry' column to GeoSeries
+    geoms = gpd.GeoSeries.from_wkt(df['Geometry'])
+
+    # Create a GeoDataFrame with the WKT geometries and the original data
+    gdf = gpd.GeoDataFrame(df, geometry=geoms)
+
+    # Write the GeoDataFrame to a shapefile
+    gdf.to_file(shp_file, driver='ESRI Shapefile')
+
+
+
+########################################################################################################################################################################
+########################################################################################################################################################################
+########################################################################################################################################################################
+                                                                             # PLOTS #
+########################################################################################################################################################################
+########################################################################################################################################################################
+########################################################################################################################################################################
+
+# (PreCoordinates)
+# plot coordinates on a figure with labels and save as an image.
+# Label size = 4
+# Had to add a hash and number as prefix so that the images are always next to each other.
+# Allows user to flick between images and compare without interruption.
+# Store the extents in a global variable so that they can be used one all the other plots
+
+def prePlotCoordinatesLabels():
+    '''(PreCoordinates) Plot coordinates on a figure with labels and save as an image.
+    Label size = 4
+    Had to add a hash and number as prefix so that the images are always next to each other.
+    Allows user to flick between images and compare without interruption.
+    Store the extents in a global variable so that they can be used one all the other plots'''
     
+    global preExtents
 
-    with open("PreCoordinates.csv", 'w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerows(sorted_data)
+    # Set the file paths
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    shp_file = os.path.join(script_dir, "PreCoordinates.shp")
+    img_file = os.path.join(script_dir, "#1_PreCoordinatesLabels.png")
+    csv_file = os.path.join(script_dir, "PreCoordinates.csv")
+
+    # Read in the GeoDataFrame
+    gdf = gpd.read_file(shp_file)
+    df = pd.read_csv(csv_file)
+
+    # Join the GeoDataFrame with the CSV
+    gdf = gdf.merge(df, on="Name")
+
+    # Get the min and max extents of the GeoDataFrame with a 10% buffer
+    xmin, ymin, xmax, ymax = gdf.total_bounds
+    x_buffer = 0.05 * (xmax - xmin)
+    y_buffer = 0.05 * (ymax - ymin)
+    preExtents = (xmin - x_buffer, ymin - y_buffer, xmax + x_buffer, ymax + y_buffer)
+
+    # Plot the GeoDataFrame with labels
+    ax = gdf.plot(markersize=10, color="red")
+    for x, y, name in zip(gdf.geometry.x, gdf.geometry.y, gdf["Name"]):
+        ax.annotate(name, xy=(x, y), xytext=(3, 0), textcoords="offset points", fontsize=4)
+
+    # Set the axes limits with the buffer
+    ax.set_xlim(preExtents[0], preExtents[2])
+    ax.set_ylim(preExtents[1], preExtents[3])
+
+    # Save the plot as an image file
+    plt.savefig(img_file, dpi=300)
+
+    # option to show the plot as an image on screen
+    # plt.show()
+
+##########################################################################################
+
+# (PreCoordinates)
+# Plot post coordinates on a figure without labels and save as an image.
+# Had to add a hash and number as prefix so that they images are always next to each other.
+# Allows user to flick between images and compare without interruption.
+
+def prePlotCoordinates():
+    '''(PreCoordinates) Plot coordinates on a figure without labels and save as an image.
+    Had to add a hash and number as prefix so that they images are always next to each other.
+    Allows user to flick between images and compare without interruption.'''
+
+    # Set the file paths
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    shp_file = os.path.join(script_dir, "PreCoordinates.shp")
+    img_file = os.path.join(script_dir, "#3_PreCoordinates.png")
+    csv_file = os.path.join(script_dir, "PreCoordinates.csv")
+
+    # Read in the GeoDataFrame
+    gdf = gpd.read_file(shp_file)
+    df = pd.read_csv(csv_file)
+
+    # Join the GeoDataFrame with the CSV
+    gdf = gdf.merge(df, on="Name")
+
+    # Plot the GeoDataFrame
+    ax = gdf.plot(markersize=10, color="red")
+
+    # Set the axes limits
+    ax.set_xlim(preExtents[0], preExtents[2])
+    ax.set_ylim(preExtents[1], preExtents[3])
+
+    # Save the plot as an image file
+    plt.savefig(img_file, dpi=300)
 
 
-####################################
+    # option to show the plot as an image on screen
+    # plt.show()
+
+##########################################################################################
+
+# (PostCoordinates)
+# plot coordinates on a figure with labels and save as an image.
+# Label size = 4
+# Had to add a hash and number as prefix so that they images are always next to each other.
+# Allows user to flick between images and compare without interruption.
+
+def postPlotCoordinatesLabels():
+    '''(PostCoordinates) Plot coordinates on a figure with labels and save as an image.
+    Label size = 4.
+    Had to add a hash and number as prefix so that they images are always next to each other.
+    Allows user to flick between images and compare without interruption.'''
+    
+    # Set the file paths
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    shp_file = os.path.join(script_dir, "PostCoordinates.shp")
+    img_file = os.path.join(script_dir, "#2_PostCoordinatesLabels.png")
+    csv_file = os.path.join(script_dir, "PostCoordinates.csv")
+
+    # Read in the GeoDataFrame
+    gdf = gpd.read_file(shp_file)
+    df = pd.read_csv(csv_file)
+
+    # Join the GeoDataFrame with the CSV
+    gdf = gdf.merge(df, on="Name")
+
+    # Plot the GeoDataFrame with labels
+    ax = gdf.plot(markersize=10, color="red")
+    for x, y, name in zip(gdf.geometry.x, gdf.geometry.y, gdf["Name"]):
+        ax.annotate(name, xy=(x, y), xytext=(3, 0), textcoords="offset points", fontsize=4)
+    
+    
+    # Set the axes limits
+    ax.set_xlim(preExtents[0], preExtents[2])
+    ax.set_ylim(preExtents[1], preExtents[3])
+
+    # Save the plot as an image file
+    plt.savefig(img_file, dpi=300)
+
+    # option to show the plot as an image on screen
+    # plt.show()
+
+##########################################################################################
+
+# (PostCoordinates)
+# Plot pre coordinates on a figure without labels and save as an image.
+# Had to add a hash and number as prefix so that they images are always next to each other.
+# Allows user to flick between images and compare without interruption.
+
+def postPlotCoordinates():
+    '''(PostCoordinates) Plot pre coordinates on a figure without labels and save as an image.
+    Had to add a hash and number as prefix so that they images are always next to each other.
+    Allows user to flick between images and compare without interruption.'''
+
+    # Set the file paths
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    shp_file = os.path.join(script_dir, "PostCoordinates.shp")
+    img_file = os.path.join(script_dir, "#4_PostCoordinates.png")
+    csv_file = os.path.join(script_dir, "PostCoordinates.csv")
+
+    # Read in the GeoDataFrame
+    gdf = gpd.read_file(shp_file)
+    df = pd.read_csv(csv_file)
+
+    # Join the GeoDataFrame with the CSV
+    gdf = gdf.merge(df, on="Name")
+
+    # Plot the GeoDataFrame with labels
+    ax = gdf.plot(markersize=10, color="red")
+    
+    
+    # Set the axes limits
+    ax.set_xlim(preExtents[0], preExtents[2])
+    ax.set_ylim(preExtents[1], preExtents[3])
+
+    # Save the plot as an image file
+    plt.savefig(img_file, dpi=300)
+
+
+    # Show the plot as an image
+    #plt.show()
+
+##########################################################################################
+
+# (DualCoordinates) Create a plot that contains both the PreCoordinates and the PostCoordinates with labels on the same plot for easier point matching.
+# Label size = 4
+# Had to add a hash and number as prefix so that they images are always next to each other.
+
+def dualPlotCoordinatesLabels():
+    '''(DualCoordinates) Create a plot that contains both the PreCoordinates and the PostCoordinates with labels on the same plot for easier point matching.'''
+
+    # Set the file paths
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    pre_shp_file = os.path.join(script_dir, "PreCoordinates.shp")
+    pre_csv_file = os.path.join(script_dir, "PreCoordinates.csv")
+    post_shp_file = os.path.join(script_dir, "PostCoordinates.shp")
+    post_csv_file = os.path.join(script_dir, "PostCoordinates.csv")
+    img_file = os.path.join(script_dir, "#0_CombinedCoordinatesLabels.png")
+
+    # Read in the GeoDataFrames
+    pre_gdf = gpd.read_file(pre_shp_file)
+    pre_df = pd.read_csv(pre_csv_file)
+    post_gdf = gpd.read_file(post_shp_file)
+    post_df = pd.read_csv(post_csv_file)
+
+    # Join the GeoDataFrames with the CSVs
+    pre_gdf = pre_gdf.merge(pre_df, on="Name")
+    post_gdf = post_gdf.merge(post_df, on="Name")
+
+    # Plot the GeoDataFrames with labels
+    ax = pre_gdf.plot(markersize=10, color="red")
+    post_gdf.plot(ax=ax, markersize=10, color="blue")
+    for x, y, name in zip(pre_gdf.geometry.x, pre_gdf.geometry.y, pre_gdf["Name"]):
+        ax.annotate(name, xy=(x, y), xytext=(3, 0), textcoords="offset points", fontsize=4, color="red")
+    for x, y, name in zip(post_gdf.geometry.x, post_gdf.geometry.y, post_gdf["Name"]):
+        ax.annotate(name, xy=(x, y), xytext=(3, 0), textcoords="offset points", fontsize=4, color="blue")
+
+    # Set the axes limits
+    ax.set_xlim(preExtents[0], preExtents[2])
+    ax.set_ylim(preExtents[1], preExtents[3])
+
+    # Save the plot as an image file
+    plt.savefig(img_file, dpi=300)
+
+    # Show the plot as an image
+    #plt.show()
+
+##########################################################################################
+
+# (DualCoordinates) Create a plot that contains both the PreCoordinates and the PostCoordinates on the same plot for easier point matching.
+# Had to add a hash and number as prefix so that they images are always next to each other.
+
+def dualPlotCoordinates():
+    '''(DualCoordinates) Create a plot that contains both the PreCoordinates and the PostCoordiantes on the same plot for easier point matching.'''
+
+    # Set the file paths
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    pre_shp_file = os.path.join(script_dir, "PreCoordinates.shp")
+    pre_csv_file = os.path.join(script_dir, "PreCoordinates.csv")
+    post_shp_file = os.path.join(script_dir, "PostCoordinates.shp")
+    post_csv_file = os.path.join(script_dir, "PostCoordinates.csv")
+    img_file = os.path.join(script_dir, "#00_CombinedCoordinates.png")
+
+    # Read in the GeoDataFrames
+    pre_gdf = gpd.read_file(pre_shp_file)
+    pre_df = pd.read_csv(pre_csv_file)
+    post_gdf = gpd.read_file(post_shp_file)
+    post_df = pd.read_csv(post_csv_file)
+
+    # Join the GeoDataFrames with the CSVs
+    pre_gdf = pre_gdf.merge(pre_df, on="Name")
+    post_gdf = post_gdf.merge(post_df, on="Name")
+
+    # Plot the GeoDataFrames with labels
+    ax = pre_gdf.plot(markersize=10, color="red")
+    post_gdf.plot(ax=ax, markersize=10, color="blue")
+
+    # Set the axes limits
+    ax.set_xlim(preExtents[0], preExtents[2])
+    ax.set_ylim(preExtents[1], preExtents[3])
+
+    # Save the plot as an image file
+    plt.savefig(img_file, dpi=300)
+
+    # Show the plot as an image
+    #plt.show()
+
+
+
+########################################################################################################################################################################
+########################################################################################################################################################################
+########################################################################################################################################################################
+                                                                         # CREATE & COPY INITAL OUTPUTS INTO NEW FOLDER #
+########################################################################################################################################################################
+########################################################################################################################################################################
+########################################################################################################################################################################
+
+# Create defaults outputs for pre and post: timed rename, CSV with coordinates and grid references, shapefiles, plots of geometry with labels.
+
+def createInitialOutputs():
+    '''Create defaults outputs for pre and post: timed rename, CSV with coordinates and grid references, shapefiles, plots of geometry with labels.'''
+    preKMZtoKML()
+    prePullCoordinatesKML()
+    preConvertCoordinates()
+    preCoordinatesWKT27700()
+    preCreateGeodataframeShapefile()
+
+    timedRename()
+    postImagePullCoordinates()
+    postConvertCoordinates()
+    postCoordinatesWKT27700()
+    postFormatCSV()
+    postCreateGeodataframeShapefile()
+
+    prePlotCoordinatesLabels()
+    prePlotCoordinates()
+    postPlotCoordinatesLabels()
+    postPlotCoordinates()
+    dualPlotCoordinatesLabels()
+    dualPlotCoordinates()
+
+##########################################################################################
+
+# Create a folder that can store a copy of the inital outputs created by the script
+# This is so that if you make amendments to the files, you will always have a copy of the originals
+
+def createInitalFolder():
+    '''Create a folder that can store a copy of the inital outputs created by the script.
+    This is so that if you make amendments to the files, you will always have a copy of the originals.'''
+
+    # Get the directory of the script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Define the name of the new folder
+    new_folder_name = "InitialOutputsBackup"
+
+    # Create the new folder
+    new_folder_path = os.path.join(script_dir, new_folder_name)
+    os.makedirs(new_folder_path, exist_ok=True)
+
+##########################################################################################
+
+# Copy initial outputs into a seperate folder for reference later on (CSVs, KML, PNGs)
+
+def copyInitalOutputs():
+    '''Copy initial outputs into a seperate folder for reference later on (CSVs, KML, PNGs).'''
+
+
+    # Get the directory of the script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
+    # Create a new folder
+    new_folder_path = os.path.join(script_dir, "InitialOutputsBackup")
+
+    # Define the file extensions to be copied
+    file_extensions = (".png", ".csv", ".kml", ".shp", ".dbf", ".cpg", ".shx")
+
+    # Copy files with the specified extensions into the new folder
+    for file_name in os.listdir(script_dir):
+        if file_name.endswith(file_extensions):
+            source_file_path = os.path.join(script_dir, file_name)
+            destination_file_path = os.path.join(new_folder_path, file_name)
+            shutil.copy(source_file_path, destination_file_path)
+
+
+
+########################################################################################################################################################################
+########################################################################################################################################################################
+########################################################################################################################################################################
+                                                                    # DELETING AND RECREATING OUTPUTS #
+########################################################################################################################################################################
+########################################################################################################################################################################
+########################################################################################################################################################################
+
+# Delete the current PostCoordinates shapefile and recreate a new one from the CSV
+# This needs to be done after every accuracy assessment
+# The shapefile is created before the assessment so it's attribute table will not contain the results of the accuracy assessment
+# By recreating the shapefile, it incorporated that new CSV data into it's attribute table
+
+def deleteAndRecreateShapefilePost():
+    '''Delete the current PostCoordinates shapefile and recreate a new one from the CSV.
+    This needs to be done after every accuracy assessment.
+    The shapefile is created before the assessment so it's attribute table will not contain the results of the accuracy assessment.
+    By recreating the shapefile, it incorporated that new CSV data into it's attribute table.'''
+
+    ########### Delete current PostCoordinates shapefile
+
+   # Get the directory path of the current script
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+
+    # Specify the names of the files to be deleted
+    file_names = ["PostCoordinates.shp", "PostCoordinates.dbf", "PostCoordinates.cpg", "PostCoordinates.shx"]
+
+    # Loop through all the files in the directory
+    for file_name in os.listdir(dir_path):
+        # Check if the file name is in the list of files to be deleted
+        if file_name in file_names:
+            # Delete the file
+            os.remove(os.path.join(dir_path, file_name))
+
+    
+    ########### Create a new updated shapefile
+    
+    # Set the file paths
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    csv_file = os.path.join(script_dir, "PostCoordinates.csv")
+    shp_file = os.path.join(script_dir, "PostCoordinates.shp")
+
+    # Read the CSV file into a pandas DataFrame
+    df = pd.read_csv(csv_file)
+
+    # Convert the WKT strings in the 'geometry' column to GeoSeries
+    geoms = gpd.GeoSeries.from_wkt(df['Geometry'])
+
+    # Create a GeoDataFrame with the WKT geometries and the original data
+    gdf = gpd.GeoDataFrame(df, geometry=geoms)
+
+    # Write the GeoDataFrame to a shapefile
+    gdf.to_file(shp_file, driver='ESRI Shapefile')
+    
+##########################################################################################
 
 # After a duplicate image is deleted, remove the outputs that are no longer representative so they can be recreated with the updated data.
 
@@ -506,10 +869,9 @@ def deleteOutputsPostDup():
             # Delete the file
             os.remove(os.path.join(dir_path, file_name))
 
-########################################
+##########################################################################################
 
 # Create initial outputs that are no longer valid now that duplicate images have been deleted
-
 
 def createOutputsPostDup():
     '''Create initial outputs that are no longer valid now that duplicate images have been deleted'''
@@ -524,8 +886,8 @@ def createOutputsPostDup():
     postPlotCoordinates()
     dualPlotCoordinatesLabels()
     dualPlotCoordinates()
-    
-#####################################
+
+##########################################################################################
 
 # After rows from the PreCoordinates (flight plan) CSV are deleted, remove the outputs that are no longer representative so they can be recreated with the updated data.
 
@@ -547,8 +909,7 @@ def deleteOutputsPreDup():
             # Delete the file
             os.remove(os.path.join(dir_path, file_name))
 
-
-#############################################
+##########################################################################################
 
 # Create outputs that are no longer valid now that rows from the PreCoordinates (flight plan) CSV are deleted - All plots and the PreCoordinates shapefile.
 
@@ -565,8 +926,13 @@ def createOutputsPreDup():
 
 
 
-
-#####################################
+########################################################################################################################################################################
+########################################################################################################################################################################
+########################################################################################################################################################################
+                                                                             # ACCURACY ASSESSMENT #
+########################################################################################################################################################################
+########################################################################################################################################################################
+########################################################################################################################################################################
 
 # Accuracy assessment, add results into PostCoordinates.csv
 
@@ -600,9 +966,7 @@ def runAccuracyAssessment():
     # Write the updated CSV file to disk, do not include index numbers (index = False)
     df2.to_csv("PostCoordinates.csv", index=False)
 
-
-
-######################################
+##########################################################################################
 
 # Less images than in the flight plan, flight not completed. Guide the user to delete any duplicates and the points in the flight plan that were not captured.
 # Then run the accuracy assessment.
@@ -864,9 +1228,7 @@ def runFlightPlanAccuracyAssessment():
     runAccuracyAssessment()
     deleteAndRecreateShapefilePost()
     
-
-
-#####################################
+##########################################################################################
 
 # Define the condition to check if the captured images match the flight plan
 # If they match, run the accuracy asssessment
@@ -963,12 +1325,7 @@ def checkAccuracyAssessment():
             runFlightPlanAccuracyAssessment()
             break
 
-
-            
-            
-    
-
-#######################
+##########################################################################################
 
 # Ask the user if they want to run an accuracy assessment.
 # If no, accuracy assessment skipped.
@@ -1001,285 +1358,13 @@ def askAccuracyAssessment():
 
 
 
-###########################
-
-# Create GeoDataFrame and shapefile
-
-def postCreateGeodataframeShapefile():
-    '''Create GeoDataFrame and shapefile.'''
-
-    # Set the file paths
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    csv_file = os.path.join(script_dir, "PostCoordinates.csv")
-    shp_file = os.path.join(script_dir, "PostCoordinates.shp")
-
-    # Read the CSV file into a pandas DataFrame
-    df = pd.read_csv(csv_file)
-
-    # Convert the WKT strings in the 'geometry' column to GeoSeries
-    geoms = gpd.GeoSeries.from_wkt(df['Geometry'])
-
-    # Create a GeoDataFrame with the WKT geometries and the original data
-    gdf = gpd.GeoDataFrame(df, geometry=geoms)
-
-    # Write the GeoDataFrame to a shapefile
-    gdf.to_file(shp_file, driver='ESRI Shapefile')
-
-
-####################################
-
-# Delete the current PostCoordinates shapefile and recreate a new one from the CSV
-# This needs to be done after every accuracy assessment
-# The shapefile is created before the assessment so it's attribute table will not contain the results of the accuracy assessment
-# By recreating the shapefile, it incorporated that new CSV data into it's attribute table
-
-def deleteAndRecreateShapefilePost():
-    '''Delete the current PostCoordinates shapefile and recreate a new one from the CSV.
-    This needs to be done after every accuracy assessment.
-    The shapefile is created before the assessment so it's attribute table will not contain the results of the accuracy assessment.
-    By recreating the shapefile, it incorporated that new CSV data into it's attribute table.'''
-
-    ########### Delete current PostCoordinates shapefile
-
-   # Get the directory path of the current script
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-
-    # Specify the names of the files to be deleted
-    file_names = ["PostCoordinates.shp", "PostCoordinates.dbf", "PostCoordinates.cpg", "PostCoordinates.shx"]
-
-    # Loop through all the files in the directory
-    for file_name in os.listdir(dir_path):
-        # Check if the file name is in the list of files to be deleted
-        if file_name in file_names:
-            # Delete the file
-            os.remove(os.path.join(dir_path, file_name))
-
-    
-    ########### Create a new updated shapefile
-    
-    # Set the file paths
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    csv_file = os.path.join(script_dir, "PostCoordinates.csv")
-    shp_file = os.path.join(script_dir, "PostCoordinates.shp")
-
-    # Read the CSV file into a pandas DataFrame
-    df = pd.read_csv(csv_file)
-
-    # Convert the WKT strings in the 'geometry' column to GeoSeries
-    geoms = gpd.GeoSeries.from_wkt(df['Geometry'])
-
-    # Create a GeoDataFrame with the WKT geometries and the original data
-    gdf = gpd.GeoDataFrame(df, geometry=geoms)
-
-    # Write the GeoDataFrame to a shapefile
-    gdf.to_file(shp_file, driver='ESRI Shapefile')
-    
-
-
-###########################
-
-# plot coordinates on a figure with labels and save as an image.
-# Label size = 4
-# Had to add a hash and number as prefix so that they images are always next to each other.
-# Allows user to flick between images and compare without interruption.
-
-
-def postPlotCoordinatesLabels():
-    '''Plot coordinates on a figure with labels and save as an image.
-    Label size = 4.
-    Had to add a hash and number as prefix so that they images are always next to each other.
-    Allows user to flick between images and compare without interruption.'''
-    
-    # Set the file paths
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    shp_file = os.path.join(script_dir, "PostCoordinates.shp")
-    img_file = os.path.join(script_dir, "#2_PostCoordinatesLabels.png")
-    csv_file = os.path.join(script_dir, "PostCoordinates.csv")
-
-    # Read in the GeoDataFrame
-    gdf = gpd.read_file(shp_file)
-    df = pd.read_csv(csv_file)
-
-    # Join the GeoDataFrame with the CSV
-    gdf = gdf.merge(df, on="Name")
-
-    # Plot the GeoDataFrame with labels
-    ax = gdf.plot(markersize=10, color="red")
-    for x, y, name in zip(gdf.geometry.x, gdf.geometry.y, gdf["Name"]):
-        ax.annotate(name, xy=(x, y), xytext=(3, 0), textcoords="offset points", fontsize=4)
-    
-    
-    # Set the axes limits
-    ax.set_xlim(preExtents[0], preExtents[2])
-    ax.set_ylim(preExtents[1], preExtents[3])
-
-    # Save the plot as an image file
-    plt.savefig(img_file, dpi=300)
-
-    # option to show the plot as an image on screen
-    # plt.show()
-
-
-
-
-####################################
-
-# Plot pre coordinates on a figure without labels and save as an image.
-# Had to add a hash and number as prefix so that they images are always next to each other.
-# Allows user to flick between images and compare without interruption.
-
-def postPlotCoordinates():
-    '''Plot pre coordinates on a figure without labels and save as an image.
-    Had to add a hash and number as prefix so that they images are always next to each other.
-    Allows user to flick between images and compare without interruption.'''
-
-    # Set the file paths
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    shp_file = os.path.join(script_dir, "PostCoordinates.shp")
-    img_file = os.path.join(script_dir, "#4_PostCoordinates.png")
-    csv_file = os.path.join(script_dir, "PostCoordinates.csv")
-
-    # Read in the GeoDataFrame
-    gdf = gpd.read_file(shp_file)
-    df = pd.read_csv(csv_file)
-
-    # Join the GeoDataFrame with the CSV
-    gdf = gdf.merge(df, on="Name")
-
-    # Plot the GeoDataFrame with labels
-    ax = gdf.plot(markersize=10, color="red")
-    
-    
-    # Set the axes limits
-    ax.set_xlim(preExtents[0], preExtents[2])
-    ax.set_ylim(preExtents[1], preExtents[3])
-
-    # Save the plot as an image file
-    plt.savefig(img_file, dpi=300)
-
-
-    # Show the plot as an image
-    #plt.show()
-
-
-
-#####################################
-
-# Plot post coordinates on a figure without labels and save as an image.
-# Had to add a hash and number as prefix so that they images are always next to each other.
-# Allows user to flick between images and compare without interruption.
-
-
-def prePlotCoordinates():
-    '''Plot post coordinates on a figure without labels and save as an image.
-    Had to add a hash and number as prefix so that they images are always next to each other.
-    Allows user to flick between images and compare without interruption.'''
-
-    # Set the file paths
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    shp_file = os.path.join(script_dir, "PreCoordinates.shp")
-    img_file = os.path.join(script_dir, "#3_PreCoordinates.png")
-    csv_file = os.path.join(script_dir, "PreCoordinates.csv")
-
-    # Read in the GeoDataFrame
-    gdf = gpd.read_file(shp_file)
-    df = pd.read_csv(csv_file)
-
-    # Join the GeoDataFrame with the CSV
-    gdf = gdf.merge(df, on="Name")
-
-    # Plot the GeoDataFrame
-    ax = gdf.plot(markersize=10, color="red")
-
-    # Set the axes limits
-    ax.set_xlim(preExtents[0], preExtents[2])
-    ax.set_ylim(preExtents[1], preExtents[3])
-
-    # Save the plot as an image file
-    plt.savefig(img_file, dpi=300)
-
-
-    # option to show the plot as an image on screen
-    # plt.show()
-
-###########################
-
-# Create a plot that contains both the PreCoordinates and the PostCoordinates on the same plot for easier point matching
-
-def dualPlotCoordinates():
-    '''Create a plot that contains both the PreCoordinates and the PostCoordiantes on the same plot for easier point matching.'''
-
-    # Set the file paths
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    pre_shp_file = os.path.join(script_dir, "PreCoordinates.shp")
-    pre_csv_file = os.path.join(script_dir, "PreCoordinates.csv")
-    post_shp_file = os.path.join(script_dir, "PostCoordinates.shp")
-    post_csv_file = os.path.join(script_dir, "PostCoordinates.csv")
-    img_file = os.path.join(script_dir, "#00_CombinedCoordinates.png")
-
-    # Read in the GeoDataFrames
-    pre_gdf = gpd.read_file(pre_shp_file)
-    pre_df = pd.read_csv(pre_csv_file)
-    post_gdf = gpd.read_file(post_shp_file)
-    post_df = pd.read_csv(post_csv_file)
-
-    # Join the GeoDataFrames with the CSVs
-    pre_gdf = pre_gdf.merge(pre_df, on="Name")
-    post_gdf = post_gdf.merge(post_df, on="Name")
-
-    # Plot the GeoDataFrames with labels
-    ax = pre_gdf.plot(markersize=10, color="red")
-    post_gdf.plot(ax=ax, markersize=10, color="blue")
-
-    # Set the axes limits
-    ax.set_xlim(preExtents[0], preExtents[2])
-    ax.set_ylim(preExtents[1], preExtents[3])
-
-    # Save the plot as an image file
-    plt.savefig(img_file, dpi=300)
-
-    
-#########################################
-
-# Create a plot that contains both the PreCoordinates and the PostCoordinates with labels on the same plot for easier point matching
-
-def dualPlotCoordinatesLabels():
-    '''Create a plot that contains both the PreCoordinates and the PostCoordinates with labels on the same plot for easier point matching.'''
-
-    # Set the file paths
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    pre_shp_file = os.path.join(script_dir, "PreCoordinates.shp")
-    pre_csv_file = os.path.join(script_dir, "PreCoordinates.csv")
-    post_shp_file = os.path.join(script_dir, "PostCoordinates.shp")
-    post_csv_file = os.path.join(script_dir, "PostCoordinates.csv")
-    img_file = os.path.join(script_dir, "#0_CombinedCoordinatesLabels.png")
-
-    # Read in the GeoDataFrames
-    pre_gdf = gpd.read_file(pre_shp_file)
-    pre_df = pd.read_csv(pre_csv_file)
-    post_gdf = gpd.read_file(post_shp_file)
-    post_df = pd.read_csv(post_csv_file)
-
-    # Join the GeoDataFrames with the CSVs
-    pre_gdf = pre_gdf.merge(pre_df, on="Name")
-    post_gdf = post_gdf.merge(post_df, on="Name")
-
-    # Plot the GeoDataFrames with labels
-    ax = pre_gdf.plot(markersize=10, color="red")
-    post_gdf.plot(ax=ax, markersize=10, color="blue")
-    for x, y, name in zip(pre_gdf.geometry.x, pre_gdf.geometry.y, pre_gdf["Name"]):
-        ax.annotate(name, xy=(x, y), xytext=(3, 0), textcoords="offset points", fontsize=4, color="red")
-    for x, y, name in zip(post_gdf.geometry.x, post_gdf.geometry.y, post_gdf["Name"]):
-        ax.annotate(name, xy=(x, y), xytext=(3, 0), textcoords="offset points", fontsize=4, color="blue")
-
-    # Set the axes limits
-    ax.set_xlim(preExtents[0], preExtents[2])
-    ax.set_ylim(preExtents[1], preExtents[3])
-
-    # Save the plot as an image file
-    plt.savefig(img_file, dpi=300)
-
-#######################################
+########################################################################################################################################################################
+########################################################################################################################################################################
+########################################################################################################################################################################
+                                                                             # BATCH RENAME #
+########################################################################################################################################################################
+########################################################################################################################################################################
+########################################################################################################################################################################
 
 # Rename images with user inputting the batch number for a prefix, insert "#" between batch number and image number.
 # Will only convert JPEG/ JPG images, did not include PNG as this will be the format of the exported plots.
@@ -1314,9 +1399,7 @@ def batchRename():
 
             start_index += 1                                                     # Increment the index
 
-
-
-#####################################
+##########################################################################################
 
 # Ask the user if they want to rename images with a batch number.
 # If yes, run the batchRename function.
@@ -1346,106 +1429,13 @@ def askBatchRename():
 
 
 
-######################################################################################
-
-# Delete any outputs created so far so we do not create them again when we start the process over. Use this for debugging.
-
-def deleteOutputs():
-    '''Delete any outputs created so far so we do not create them again when we start the process over. Use this for debugging.'''
-
-    # Get the directory path of the current script
-    dir_path = os.path.dirname(os.path.abspath(__file__))
-
-    # Specify the file extensions of the files to be deleted
-    file_extensions = [".png", ".csv", ".kml"]
-
-    # Loop through all the files in the directory
-    for file_name in os.listdir(dir_path):
-        # Check if the file has one of the specified extensions
-        if any(file_name.endswith(ext) for ext in file_extensions):
-            # Delete the file
-            os.remove(os.path.join(dir_path, file_name))
-
-
-###########################################
-
-# Create a folder that can store a copy of the inital outputs created by the script
-# This is so that if you make amendments to the files, you will always have a copy of the originals
-
-def createInitalFolder():
-    '''Create a folder that can store a copy of the inital outputs created by the script.
-    This is so that if you make amendments to the files, you will always have a copy of the originals.'''
-
-    # Get the directory of the script
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-
-    # Define the name of the new folder
-    new_folder_name = "InitialOutputsBackup"
-
-    # Create the new folder
-    new_folder_path = os.path.join(script_dir, new_folder_name)
-    os.makedirs(new_folder_path, exist_ok=True)
-
-############################################
-
-# Copy initial outputs into a seperate folder for reference later on.
-
-def copyInitalOutputs():
-    '''Copy initial outputs into a seperate folder for reference later on.'''
-
-
-    # Get the directory of the script
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-
-    # Create a new folder
-    new_folder_path = os.path.join(script_dir, "InitialOutputsBackup")
-
-    # Define the file extensions to be copied
-    file_extensions = (".png", ".csv", ".kml", ".shp", ".dbf", ".cpg", ".shx")
-
-    # Copy files with the specified extensions into the new folder
-    for file_name in os.listdir(script_dir):
-        if file_name.endswith(file_extensions):
-            source_file_path = os.path.join(script_dir, file_name)
-            destination_file_path = os.path.join(new_folder_path, file_name)
-            shutil.copy(source_file_path, destination_file_path)
-
-
-
-##############################
-
-
-
-# Create defaults outputs for pre and post: timed rename, CSV with coordinates and grid references, shapefiles, plots of geometry with labels.
-
-def createInitialOutputs():
-    '''Create defaults outputs for pre and post: timed rename, CSV with coordinates and grid references, shapefiles, plots of geometry with labels.'''
-    preKMZtoKML()
-    prePullCoordinatesKML()
-    preConvertCoordinates()
-    preCoordinatesWKT27700()
-    preCreateGeodataframeShapefile()
-
-    timedRename()
-    postImagePullCoordinates()
-    postConvertCoordinates()
-    postCoordinatesWKT27700()
-    postFormatCSV()
-    postCreateGeodataframeShapefile()
-
-    prePlotCoordinatesLabels()
-    prePlotCoordinates()
-    postPlotCoordinatesLabels()
-    postPlotCoordinates()
-
-    dualPlotCoordinatesLabels()
-    dualPlotCoordinates()
-
-
-
-
-
-#############################################
+########################################################################################################################################################################
+########################################################################################################################################################################
+########################################################################################################################################################################
+                                                                             # PRINT SUMMARY #
+########################################################################################################################################################################
+########################################################################################################################################################################
+########################################################################################################################################################################
 
 # Print message to give a summary of the outputs created.
 
@@ -1521,22 +1511,41 @@ def printSummary():
 
 
 
-########################################################
+########################################################################################################################################################################
+########################################################################################################################################################################
+########################################################################################################################################################################
+                                                                             # MISCELLANEOUS #
+########################################################################################################################################################################
+########################################################################################################################################################################
+########################################################################################################################################################################
 
-# Create all plots, with and without labels - PreCoordinates, PostCoordinates and Dual plots.
+# Delete any outputs created so far so we do not create them again when we start the process over. Use this for debugging.
 
-def plotAllCoordinates():
-    '''Create all plots, with and without labels - PreCoordinates, PostCoordinates and Dual plots.'''
+def deleteOutputs():
+    '''Delete any outputs created so far so we do not create them again when we start the process over. Use this for debugging.'''
 
-    prePlotCoordinatesLabels()
-    prePlotCoordinates()
-    postPlotCoordinatesLabels()
-    postPlotCoordinates()
-    dualPlotCoordinatesLabels()
-    dualPlotCoordinates()
+    # Get the directory path of the current script
+    dir_path = os.path.dirname(os.path.abspath(__file__))
+
+    # Specify the file extensions of the files to be deleted
+    file_extensions = [".png", ".csv", ".kml"]
+
+    # Loop through all the files in the directory
+    for file_name in os.listdir(dir_path):
+        # Check if the file has one of the specified extensions
+        if any(file_name.endswith(ext) for ext in file_extensions):
+            # Delete the file
+            os.remove(os.path.join(dir_path, file_name))
 
 
-####################
+
+########################################################################################################################################################################
+########################################################################################################################################################################
+########################################################################################################################################################################
+                                                                        # MAIN FUNCTION & RUN #
+########################################################################################################################################################################
+########################################################################################################################################################################
+########################################################################################################################################################################
 
 # The main function that will be called for this script, calls all other functions.
 
@@ -1566,7 +1575,4 @@ def flightCheck():
     # Print message to give a summary of the outputs created, was accuracy assessment requested, if so was it successful.
     printSummary()
 
-######################################################
-
 flightCheck()
-
