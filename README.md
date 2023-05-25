@@ -1,5 +1,49 @@
 # Drone-Mapping
 
+1) This script is designed to take an automated drone mapping flight plan and the images taken during the flight to create the following outputs:
+
+      a) Flight Plan (PreCoordinates)  
+         -extract coordinates and store in a CSV
+         -convert to British National Grid
+         -convert to Well-Known Text
+         -create a point shapefile
+
+      b) Drone Images (PostCoordinates)
+         -extract coordinates and store in a CSV
+         -convert to British National Grid
+         -convert to Well-Known Text
+         -create a point shapefile
+
+      c) Plots
+         -plot PreCoordinates with and without labels
+         -plot PostCoordinates with and without labels
+         -plot PreCoordinates and PostCoordinates on the same plot, with and without labels
+
+2) There is an option to assess the accuracy of the flight against the flight plan, there are three different paths depending on whether a flight has been completed as planned:
+
+      a) Flight completed as planned
+         -the number of images taken match the number of points in the flight plan
+         -accuracy assessment runs
+
+      b) Duplicate Images
+         -there are more images than points in the flight plan, due to duplicate images being taken, often due to poor weather conditions
+         -duplicate images selected by user and then deleted
+         -accuracy assessment runs
+
+      c) Flight not completed
+         -there are less images than points in the flight plan, therefore the flight plan has not been completed, likely cut short due to poor weather conditions
+         -user asked to check for duplicates images and if any, are deleted. If the flight has been cut short it is likely that duplicate images may have been taken also
+         -flight plan points that were not capture are selected by the user and then deleted
+         -accuracy assessment runs
+
+3) There is an option to rename the images with a batch number prefix: 
+
+      -this is helpful when organising large sets of drone images
+      -e.g. can be used when using batches of images for annotating and input as machine-learning training datasets
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
 The GitHub Repository that contains the scripts, data and environment can be found at: https://github.com/rdslauder/DroneMapping
 
 
